@@ -4,15 +4,31 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const raylib = b.dependency("raylib", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const raylib_c = b.addTranslateC(.{
+        .root_source_file = raylib.path("src/raylib.h"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    }).createModule();
+
     const game = b.addLibrary(.{
         .name = "game",
-        .linkage = .dynamic,
         .root_module = b.createModule(.{
-            .root_source_file = b.path("game/lib.zig"),
+            .root_source_file = b.path("src/game.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{ .name = "raylib", .module = raylib_c },
+            },
         }),
+        .linkage = .dynamic,
     });
+    game.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(game);
 
@@ -22,12 +38,12 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{},
-            .link_libc = true,
+            .imports = &.{
+                .{ .name = "raylib", .module = raylib_c },
+            },
         }),
     });
-
-    exe.step.dependOn(&game.step);
+    exe.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(exe);
 
