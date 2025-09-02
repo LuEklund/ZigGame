@@ -15,7 +15,7 @@ pub const Pixels = extern struct {
 
 pub export fn update(dt: f32, state: *State) void {
     if (state.pos_x >= 300) {
-        state.dir_x = -100;
+        state.dir_x = -1020;
     } else if (state.pos_x <= 100) state.dir_x = 100;
     state.pos_x += state.dir_x * dt;
 }
