@@ -26,11 +26,11 @@ pub fn main() !void {
     var update = lib.lookup(*const fn (f32, *GameState) callconv(.c) void, "update") orelse return error.LookupFailed;
     var draw = lib.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw") orelse return error.LookupFailed;
 
+    rl.SetTraceLogLevel(rl.LOG_ERROR);
     rl.InitWindow(screen_width, screen_height, "ZigGame");
     rl.SetTargetFPS(fps);
-    rl.SetTraceLogLevel(rl.LOG_ERROR);
 
-    var buffer = [_]u32{0} ** (screen_width * screen_height);
+    var buffer: [screen_width * screen_height]u32 = @splat(0);
     @memset(&buffer, 0);
     const image: rl.Image = .{
         .width = rl.GetRenderWidth(),
@@ -52,22 +52,17 @@ pub fn main() !void {
         rl.BeginDrawing();
         rl.ClearBackground(rl.BLACK);
 
-        // std.debug.print("curr state: {any}\n", .{state});
         rl.DrawTexture(texture, 0, 0, rl.WHITE);
 
         rl.DrawText("Suscribe", 10, screen_height, 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
         rl.EndDrawing();
 
-        if (try file_watcher.listen() == true) blk: {
-            std.debug.print("Updated!\n", .{});
-            const new_lib = std.DynLib.open(game_file_path) catch break :blk;
+        if (try file_watcher.listen()) blk: {
             lib.close();
-            lib = new_lib;
+            lib = std.DynLib.open(game_file_path) catch break :blk;
             update = lib.lookup(*const fn (f32, *GameState) callconv(.c) void, "update") orelse return error.LookupFailed;
             draw = lib.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw") orelse return error.LookupFailed;
-            std.debug.print("Updated WORKED: {s}\n", .{game_file_path});
-        } else {
-            // std.debug.print("NO Update!\n", .{});
+            try file_watcher.addFile("zig-out/lib/");
         }
     }
 }
