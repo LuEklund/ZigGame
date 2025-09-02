@@ -6,9 +6,9 @@ const rl = @import("raylib");
 pub fn main() !void {
     var lib = try std.DynLib.open("zig-out/lib/libgame" ++ comptime builtin.target.os.tag.dynamicLibSuffix());
     defer lib.close();
-    const update = lib.lookup(*const fn (header.State) header.State, "update") orelse return error.LookupFailed;
+    const update = lib.lookup(*const fn (header.State) void, "update") orelse return error.LookupFailed;
 
-    var state: header.State = .{ .index = 90 };
+    const state: header.State = .{ .index = 90 };
 
     rl.SetTraceLogLevel(rl.LOG_ERROR);
     rl.InitWindow(900, 800, "ZigGame Engine");
@@ -25,8 +25,6 @@ pub fn main() !void {
         rl.ClearBackground(rl.RAYWHITE);
         rl.DrawText("Lucas yay", 50, 60, 90, rl.RED);
 
-        state = update(state);
-
-        std.debug.print("State index: {d}\n", .{0});
+        update(state);
     }
 }
