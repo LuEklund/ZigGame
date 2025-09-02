@@ -14,10 +14,10 @@ pub const Pixels = extern struct {
 };
 
 pub export fn update(dt: f32, state: *State) void {
-    if (state.pos_x >= 300) {
-        state.dir_x = -100;
-    } else if (state.pos_x <= 100) state.dir_x = 100;
-    state.pos_x += state.dir_x * dt;
+    var prng = std.Random.DefaultPrng.init(1);
+    const random = prng.random();
+    state.pos_x += random.float(f32) * 100 * dt;
+    state.pos_y += random.float(f32) * 100 * dt;
 }
 
 pub export fn draw(state: *State, buffer: [*]Pixels) void {
