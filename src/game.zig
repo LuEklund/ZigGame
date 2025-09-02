@@ -1,5 +1,10 @@
 const std = @import("std");
-const GameState = @import("header.zig").GameState;
+pub const GameState = extern struct {
+    pos_x: f32 = 0,
+    pos_y: f32 = 0,
+    dir_x: f32 = 100,
+    dir_y: f32 = 0,
+};
 
 pub export fn update(dt: f32, state: *GameState) void {
     if (state.pos_x >= 300) {

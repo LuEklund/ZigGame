@@ -1,7 +1,7 @@
 const rl = @import("raylib");
 const std = @import("std");
 const builtin = @import("builtin");
-const GameState = @import("header.zig").GameState;
+const GameState = @import("game.zig").GameState;
 
 const fps = 60;
 const screen_width = 640;
