@@ -4,6 +4,18 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const game = b.addLibrary(.{
+        .name = "game",
+        .linkage = .dynamic,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("game/lib.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    b.installArtifact(game);
+
     const exe = b.addExecutable(.{
         .name = "ZigGameRuntime",
         .root_module = b.createModule(.{
@@ -11,8 +23,11 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .imports = &.{},
+            .link_libc = true,
         }),
     });
+
+    exe.step.dependOn(&game.step);
 
     b.installArtifact(exe);
 
