@@ -2,6 +2,7 @@ const rl = @import("raylib");
 const std = @import("std");
 const builtin = @import("builtin");
 const GameState = @import("game.zig").State;
+const Input = @import("game.zig").Input;
 const FileWatcher = @import("FileWatcher.zig");
 
 const fps = 60;
@@ -23,6 +24,7 @@ pub fn main() !void {
     // This is the shit I cooked up
     var lib: std.DynLib = try .open(game_file_path);
     defer lib.close();
+    var processInput = lib.lookup(*const fn (*GameState, *Input) callconv(.c) void, "processInput") orelse return error.LookUpFailed;
     var update = lib.lookup(*const fn (f32, *GameState) callconv(.c) void, "update") orelse return error.LookupFailed;
     var draw = lib.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw") orelse return error.LookupFailed;
 
@@ -31,7 +33,6 @@ pub fn main() !void {
     rl.SetTargetFPS(fps);
 
     var buffer: [screen_width * screen_height]u32 = @splat(0);
-    @memset(&buffer, 0);
     const image: rl.Image = .{
         .width = rl.GetRenderWidth(),
         .height = rl.GetRenderHeight(),
@@ -42,6 +43,13 @@ pub fn main() !void {
 
     while (!rl.WindowShouldClose()) {
         const dt = rl.GetFrameTime();
+        var input: Input = .{};
+        input.a = rl.IsKeyDown(rl.KEY_A);
+        input.d = rl.IsKeyDown(rl.KEY_D);
+        input.w = rl.IsKeyDown(rl.KEY_W);
+        input.s = rl.IsKeyDown(rl.KEY_S);
+        processInput(&state, &input);
+
         update(dt, &state);
 
         @memset(&buffer, @bitCast(rl.GREEN));
@@ -60,6 +68,7 @@ pub fn main() !void {
         if (try file_watcher.listen()) blk: {
             lib.close();
             lib = std.DynLib.open(game_file_path) catch break :blk;
+            processInput = lib.lookup(*const fn (*GameState, *Input) callconv(.c) void, "processInput") orelse return error.LookUpFailed;
             update = lib.lookup(*const fn (f32, *GameState) callconv(.c) void, "update") orelse return error.LookupFailed;
             draw = lib.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw") orelse return error.LookupFailed;
             try file_watcher.addFile("zig-out/lib/");
