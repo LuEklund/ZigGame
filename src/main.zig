@@ -14,18 +14,31 @@ const Platform = struct {};
 const Game = struct {};
 const Tool = struct {};
 
+const PlaybackMode = enum {
+    playing,
+    recording,
+    replaying,
+};
+
 pub fn main() !void {
+    const allocator = std.heap.page_allocator;
+    var game_states: std.ArrayList(Input) = .empty;
+    var replay_index: u32 = 0;
+
     const game_file_path = "zig-out/lib/libgame" ++ comptime builtin.target.dynamicLibSuffix(); //TODO: dynamicLibSuffix you also need dynamicLibPrefix, there's std.process.selfExePath() iirc
     var file_watcher: FileWatcher = try .init();
     defer file_watcher.deinit();
     try file_watcher.addFile("zig-out/lib/");
 
-    var state: GameState = .{};
+    var current_state: GameState = .{};
+    var start_state: GameState = .{};
+    var end_state: GameState = .{};
+    var playback_mode: PlaybackMode = .playing;
+
     // This is the shit I cooked up
     var lib: std.DynLib = try .open(game_file_path);
     defer lib.close();
-    var processInput = lib.lookup(*const fn (*GameState, *Input) callconv(.c) void, "processInput") orelse return error.LookUpFailed;
-    var update = lib.lookup(*const fn (f32, *GameState) callconv(.c) void, "update") orelse return error.LookupFailed;
+    var update = lib.lookup(*const fn (f32, *GameState, *Input) callconv(.c) void, "update") orelse return error.LookupFailed;
     var draw = lib.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw") orelse return error.LookupFailed;
 
     rl.SetTraceLogLevel(rl.LOG_ERROR);
@@ -41,19 +54,61 @@ pub fn main() !void {
         .data = &buffer,
     };
 
-    while (!rl.WindowShouldClose()) {
-        const dt = rl.GetFrameTime();
-        var input: Input = .{};
-        input.a = rl.IsKeyDown(rl.KEY_A);
-        input.d = rl.IsKeyDown(rl.KEY_D);
-        input.w = rl.IsKeyDown(rl.KEY_W);
-        input.s = rl.IsKeyDown(rl.KEY_S);
-        processInput(&state, &input);
+    var timer = try std.time.Timer.start();
+    var accumulated_time: f32 = 0;
+    const seconds_per_update = 0.016;
 
-        update(dt, &state);
+    while (!rl.WindowShouldClose()) {
+        std.debug.print("current: {d}\n", .{current_state.elapsed_time});
+        std.debug.print("start: {d}\n", .{start_state.elapsed_time});
+        std.debug.print("end: {d}\n", .{end_state.elapsed_time});
+
+        if (playback_mode == .replaying and current_state.elapsed_time == end_state.elapsed_time) {
+            current_state = start_state;
+            replay_index = 0;
+        }
+
+        accumulated_time += @as(f32, @floatFromInt(timer.lap())) / (1000 * 1000 * 1000);
+
+        if (accumulated_time >= seconds_per_update) {
+            var input: Input = .{};
+            if (playback_mode == .replaying) {
+                input = game_states.items[replay_index];
+                replay_index += 1;
+            }
+            input.a = if (rl.IsKeyDown(rl.KEY_A)) true else input.a;
+            input.d = if (rl.IsKeyDown(rl.KEY_D)) true else input.d;
+            input.w = if (rl.IsKeyDown(rl.KEY_W)) true else input.w;
+            input.s = if (rl.IsKeyDown(rl.KEY_S)) true else input.s;
+
+            if (rl.IsKeyPressed(rl.KEY_R)) {
+                switch (playback_mode) {
+                    .playing => {
+                        start_state = current_state;
+                        playback_mode = .recording;
+                        game_states.clearAndFree(allocator);
+                        replay_index = 0;
+                    },
+                    .recording => {
+                        end_state = current_state;
+                        current_state = start_state;
+                        playback_mode = .replaying;
+                    },
+                    .replaying => {
+                        playback_mode = .playing;
+                    },
+                }
+            }
+
+            update(seconds_per_update, &current_state, &input);
+
+            if (playback_mode == .recording) {
+                try game_states.append(allocator, input);
+            }
+        }
 
         @memset(&buffer, @bitCast(rl.GREEN));
-        draw(&state, &buffer);
+        draw(&current_state, &buffer);
         const texture = rl.LoadTextureFromImage(image);
         defer rl.UnloadTexture(texture);
 
@@ -62,14 +117,13 @@ pub fn main() !void {
 
         rl.DrawTexture(texture, 0, 0, rl.WHITE);
 
-        rl.DrawText("Suscribe", 10, screen_height, 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
+        rl.DrawText("Suscibe", 10, screen_height, 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
         rl.EndDrawing();
 
         if (try file_watcher.listen()) blk: {
             lib.close();
             lib = std.DynLib.open(game_file_path) catch break :blk;
-            processInput = lib.lookup(*const fn (*GameState, *Input) callconv(.c) void, "processInput") orelse return error.LookUpFailed;
-            update = lib.lookup(*const fn (f32, *GameState) callconv(.c) void, "update") orelse return error.LookupFailed;
+            update = lib.lookup(*const fn (f32, *GameState, *Input) callconv(.c) void, "update") orelse return error.LookupFailed;
             draw = lib.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw") orelse return error.LookupFailed;
             try file_watcher.addFile("zig-out/lib/");
         }
