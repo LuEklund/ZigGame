@@ -31,8 +31,8 @@ pub export fn update(dt: f32, state: *State, input: *Input) void {
     state.dir_x += if (input.d) 1 else 0;
 
     state.elapsed_time += dt;
-    state.pos_x += state.dir_x * dt * 50;
-    state.pos_y += state.dir_y * dt * 50;
+    state.pos_x += state.dir_x * dt * 100;
+    state.pos_y += state.dir_y * dt * 100;
     // state.pos_x = @cos(state.elapsed_time * 100) * 30 + 100;
     // state.pos_y = @sin(state.elapsed_time * 100) * 30 + 100;
 }
