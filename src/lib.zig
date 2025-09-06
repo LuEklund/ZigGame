@@ -33,20 +33,36 @@ pub const Game = struct {
     file_watcher: FileWatcher,
 
     pub fn init() !@This() {
-        const lib_path: []const u8 = std.fmt.comptimePrint("{s}libgame{s}", .{ if (builtin.mode == .Debug) "zig-out/lib/" else "", comptime builtin.target.dynamicLibSuffix() });
+        const lib_name: []const u8 = std.fmt.comptimePrint("libgame{s}", .{comptime builtin.target.dynamicLibSuffix()});
 
-        if ((std.fs.cwd().access(lib_path, .{}) catch null) == null) {
-            std.log.warn("{s} not found", .{lib_path});
-            std.process.cleanExit();
-        }
+        const search_paths: []const []const u8 = &.{
+            "../lib/",
+            "zig-out/lib/",
+            "./",
+        };
+
+        const lib_path: ?[]const u8 =
+            for (search_paths) |path_prefix| {
+                var buffer: [std.fs.max_path_bytes]u8 = undefined;
+                const path = try std.fmt.bufPrint(&buffer, "{s}{s}", .{ path_prefix, lib_name });
+
+                if ((std.fs.cwd().access(path, .{}) catch null) != null) {
+                    break @constCast(path);
+                }
+            } else null;
+
+        //if (lib_path == null or (std.fs.cwd().access(lib_path.?, .{}) catch null) != null) {
+        //    std.log.warn("{s} not found", .{lib_path orelse "null"});
+        //    std.process.cleanExit();
+        //}
 
         var file_watcher: FileWatcher = try .init();
         try file_watcher.addFile("zig-out/lib/");
 
-        const dynlib: std.DynLib = try .open(lib_path);
+        const dynlib: std.DynLib = try .open(lib_path.?);
 
         return .{
-            .lib_path = lib_path,
+            .lib_path = lib_path.?,
             .dynlib = dynlib,
             .file_watcher = file_watcher,
         };

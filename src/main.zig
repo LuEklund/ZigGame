@@ -19,7 +19,6 @@ pub fn main() !void {
         // release modes
         else => smp_allocator,
     };
-    // we can do this just for demonstration
     std.log.info("current mode: {[mode]s}", .{ .mode = @tagName(builtin.mode) });
     var game_states: std.ArrayList(Input) = .empty;
     var replay_index: u32 = 0;
