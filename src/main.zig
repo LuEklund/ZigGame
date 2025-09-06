@@ -5,15 +5,6 @@ const GameState = @import("game.zig").State;
 const Input = @import("game.zig").Input;
 const lib = @import("lib.zig");
 
-const fps = 60;
-const screen_width = 600;
-const screen_height = 600;
-
-// 💩💩💩💩💩 <-- ga
-const Platform = struct {};
-const Game = struct {};
-const Tool = struct {};
-
 const PlaybackMode = enum {
     playing,
     recording,
@@ -37,17 +28,21 @@ pub fn main() !void {
     var update = try game.lookup(*const fn (f32, *GameState, *Input) callconv(.c) void, "update");
     var draw = try game.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw");
 
+    // rl.SetConfigFlags(rl.FLAG_WINDOW_RESIZABLE);
     rl.SetTraceLogLevel(rl.LOG_ERROR);
-    rl.InitWindow(screen_width, screen_height, "ZigGame");
-    rl.SetTargetFPS(fps);
+    rl.InitWindow(600, 600, "ZigGame");
+    rl.SetTargetFPS(60);
 
-    var buffer: [screen_width * screen_height]u32 = @splat(0);
+    const buffer: []u32 = try allocator.alloc(u32, @intCast(rl.GetRenderWidth() * rl.GetRenderHeight()));
+    defer allocator.free(buffer);
+    @memset(buffer, 0);
+
     const image: rl.Image = .{
         .width = rl.GetRenderWidth(),
         .height = rl.GetRenderHeight(),
         .format = rl.PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
         .mipmaps = 1,
-        .data = &buffer,
+        .data = @ptrCast(buffer.ptr),
     };
 
     var timer = try std.time.Timer.start();
@@ -57,9 +52,21 @@ pub fn main() !void {
     var playing_state_text: []const u8 = "Playing";
 
     while (!rl.WindowShouldClose()) {
-        std.debug.print("current: {d}\n", .{current_state.elapsed_time});
-        std.debug.print("start: {d}\n", .{start_state.elapsed_time});
-        std.debug.print("end: {d}\n", .{end_state.elapsed_time});
+        // if (rl.IsWindowResized()) {
+        //     const size: usize = @intCast(rl.GetRenderWidth() * rl.GetRenderHeight());
+        //     if (!allocator.resize(buffer, size)) {
+        //         // allocator.free(buffer);
+        //         // buffer = try allocator.alloc(u32, size);
+        //         buffer = try allocator.realloc(buffer, size);
+        //         image.data = @ptrCast(buffer.ptr);
+        //     }
+
+        //     rl.ImageResize(&image, rl.GetRenderWidth(), rl.GetRenderHeight());
+        // }
+
+        //std.debug.print("current: {d}\n", .{current_state.elapsed_time});
+        //std.debug.print("start: {d}\n", .{start_state.elapsed_time});
+        //std.debug.print("end: {d}\n", .{end_state.elapsed_time});
 
         if (playback_mode == .replaying and current_state.elapsed_time == end_state.elapsed_time) {
             current_state = start_state;
@@ -108,8 +115,8 @@ pub fn main() !void {
             }
         }
 
-        @memset(&buffer, @bitCast(rl.GREEN));
-        draw(&current_state, &buffer);
+        @memset(buffer, @bitCast(rl.GREEN));
+        draw(&current_state, buffer.ptr);
         const texture = rl.LoadTextureFromImage(image);
         defer rl.UnloadTexture(texture);
 
@@ -118,7 +125,7 @@ pub fn main() !void {
 
         rl.DrawTexture(texture, 0, 0, rl.WHITE);
 
-        rl.DrawText(playing_state_text.ptr, 10, screen_height, 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
+        rl.DrawText(playing_state_text.ptr, 10, rl.GetRenderHeight(), 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
         rl.EndDrawing();
 
         if (try game.listen()) {
