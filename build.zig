@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseFast });
 
     const game = b.addLibrary(.{
         .name = "game",
@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
         .linkage = .dynamic,
+        .use_llvm = true,
     });
 
     b.installArtifact(game);
@@ -55,6 +56,7 @@ pub fn build(b: *std.Build) void {
                         .{ .name = "raylib", .module = raylib_c },
                     },
                 }),
+                .use_llvm = true,
             });
             exe.linkLibrary(raylib.artifact("raylib"));
             break :blk exe;

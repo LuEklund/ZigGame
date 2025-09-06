@@ -12,7 +12,14 @@ const PlaybackMode = enum {
 };
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+    const smp_allocator = std.heap.smp_allocator;
+    const allocator = switch (builtin.mode) {
+        .Debug => debug_allocator.allocator(),
+        // release modes
+        else => smp_allocator,
+    };
+    std.log.info("current mode: {[mode]s}", .{ .mode = @tagName(builtin.mode) });
     var game_states: std.ArrayList(Input) = .empty;
     var replay_index: u32 = 0;
 
