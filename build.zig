@@ -4,35 +4,41 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseFast });
 
-    const game = b.addLibrary(.{
-        .name = "game",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/game.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-        .linkage = .dynamic,
-        .use_llvm = true,
-    });
-
-    b.installArtifact(game);
-
     const exe = switch (target.result.os.tag) {
         .freestanding => switch (target.result.cpu.arch) {
-            .wasm32, .wasm64 => blk: {
-                break :blk b.addExecutable(.{
-                    .name = "ZigGameRuntime",
-                    .root_module = b.createModule(.{
-                        .root_source_file = b.path("src/wasm.zig"),
-                        .target = target,
-                        .optimize = optimize,
-                        .imports = &.{},
-                    }),
+            .wasm32, .wasm64 => wasm: {
+                const mod = b.createModule(.{
+                    .root_source_file = b.path("src/game.zig"),
+                    .target = target,
+                    .optimize = optimize,
                 });
+                mod.export_symbol_names = &.{ "update", "draw" };
+                const exe = b.addExecutable(.{
+                    .name = "ZigGameRuntime",
+                    .root_module = mod,
+                });
+                exe.entry = .disabled;
+                exe.initial_memory = 30 * 65536;
+                exe.max_memory = 30 * 65536;
+                exe.shared_memory = false;
+                break :wasm exe;
             },
             else => unreachable,
         },
         else => blk: {
+            const game = b.addLibrary(.{
+                .name = "game",
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path("src/game.zig"),
+                    .target = target,
+                    .optimize = optimize,
+                }),
+                .linkage = .dynamic,
+                .use_llvm = true,
+            });
+
+            b.installArtifact(game);
+
             const raylib = b.dependency("raylib", .{
                 .target = target,
                 .optimize = optimize,

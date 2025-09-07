@@ -56,8 +56,6 @@ pub fn main() !void {
     var accumulated_time: f32 = 0;
     const seconds_per_update = 0.016;
 
-    var playing_state_text: []const u8 = "Playing";
-
     while (!rl.WindowShouldClose()) {
         // if (rl.IsWindowResized()) {
         //     const size: usize = @intCast(rl.GetRenderWidth() * rl.GetRenderHeight());
@@ -97,7 +95,6 @@ pub fn main() !void {
                 switch (playback_mode) {
                     .playing => {
                         start_state = current_state;
-                        playing_state_text = "Recording";
                         playback_mode = .recording;
                         game_states.clearAndFree(allocator);
                         replay_index = 0;
@@ -105,11 +102,9 @@ pub fn main() !void {
                     .recording => {
                         end_state = current_state;
                         current_state = start_state;
-                        playing_state_text = "Replaying";
                         playback_mode = .replaying;
                     },
                     .replaying => {
-                        playing_state_text = "Playing";
                         playback_mode = .playing;
                     },
                 }
@@ -132,7 +127,11 @@ pub fn main() !void {
 
         rl.DrawTexture(texture, 0, 0, rl.WHITE);
 
-        rl.DrawText(playing_state_text.ptr, 10, rl.GetRenderHeight(), 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
+        rl.DrawText(switch (playback_mode) {
+            .playing => "Playing",
+            .recording => "Recording",
+            .replaying => "Replaying",
+        }, 10, rl.GetRenderHeight() - 40, 30, .{ .r = 255, .g = 0, .b = 0, .a = 255.0 });
         rl.EndDrawing();
 
         if (try game.listen()) {
