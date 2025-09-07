@@ -19,6 +19,22 @@ pub const Pixel = extern struct {
     g: u8 = 0,
     b: u8 = 0,
     a: u8 = 0,
+
+    pub const red: Pixel = .initOpaque(255, 0, 0);
+    pub const green: Pixel = .initOpaque(0, 255, 0);
+
+    pub fn init(r: u8, g: u8, b: u8, a: u8) Pixel {
+        return .{
+            .r = r,
+            .g = g,
+            .b = b,
+            .a = a,
+        };
+    }
+
+    pub fn initOpaque(r: u8, g: u8, b: u8) Pixel {
+        return .init(r, g, b, 255);
+    }
 };
 
 //TODO: COPY the state dont use the same!
@@ -38,13 +54,22 @@ pub export fn update(dt: f32, state: *State, input: *Input) void {
 }
 
 pub export fn draw(state: *State, buffer: [*]Pixel) void {
-    for (@intFromFloat(state.pos_y)..@as(usize, @intFromFloat(state.pos_y)) + 10) |y| {
-        for (@intFromFloat(state.pos_x)..@as(usize, @intFromFloat(state.pos_x)) + 10) |x| {
-            // buffer[x + y * 600] = @bitCast(@as(u32, 0xFF0000FF));
-            buffer[x + y * 600].r = @intCast(@mod(@as(u32, @intFromFloat(state.elapsed_time * 50)), 0xAA));
-            buffer[x + y * 600].g = @intCast(@mod(@as(u32, @intFromFloat(state.elapsed_time * 0)), 0xFF));
-            buffer[x + y * 600].b = @intCast(@mod(@as(u32, @intFromFloat(state.elapsed_time * 50)), 0xFF));
-            buffer[x + y * 600].a = 0xFF;
+    // @memset(buffer[0..(w * h / 2)], .green);
+
+    const box_x: i32 = @intFromFloat(state.pos_x);
+    const box_y: i32 = @intFromFloat(state.pos_y);
+
+    for (0..10) |offset_y| {
+        for (0..10) |offset_x| {
+            const y: i32 = box_y + @as(i32, @intCast(offset_y));
+
+            const x: i32 = box_x + @as(i32, @intCast(offset_x));
+
+            if (x >= 0 and y >= 0 and @as(usize, @intCast(x)) < 600 and @as(usize, @intCast(y)) < 600) {
+                const index = @as(usize, @intCast(x)) + @as(usize, @intCast(y)) * 600;
+
+                buffer[index] = .red;
+            }
         }
     }
 }
