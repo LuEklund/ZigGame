@@ -1,18 +1,8 @@
-name: CI
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
 
 jobs:
-  build-and-test:
+  build-wasm:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        zig-version: [master]   # or 'latest' for stable
 
     steps:
       - name: Checkout code
@@ -20,33 +10,30 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Zig
+      - name: Setup Zig (nightly)
         uses: mlugg/setup-zig@v2
         with:
-          version: ${{ matrix.zig-version }}
-
-      - name: Install Wayland/X11 build deps (Linux only)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwayland-bin wayland-protocols libwayland-dev \
-            libxkbcommon-dev libgl1-mesa-dev \
-            libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libxxf86vm-dev
+          version: master
 
       - name: Cache Zig build dirs
         uses: actions/cache@v4
-        with:
-          path: |
             ~/.cache/zig
             zig-cache
             zig-out
-          key: ${{ runner.os }}-zig-${{ matrix.zig-version }}-${{ hashFiles('build.zig.zon') }}
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
           restore-keys: |
-            ${{ runner.os }}-zig-${{ matrix.zig-version }}-
             ${{ runner.os }}-zig-
 
-      - name: Build project
-        run: zig build
-      - name: Run tests
-        run: zig build test
+      - name: Build WASM
+        run: zig build -Dtarget=wasm32-freestanding
+
+      - name: Place WASM where the dev server expects it
+        run: |
+          mkdir -p WASM
+          cp zig-out/bin/ZigGameRuntime.wasm WASM/ZigGameRuntime.wasm
+
+      - name: Upload WASM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZigGameRuntime-wasm
+          path: WASM/ZigGameRuntime.wasm
