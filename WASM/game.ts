@@ -1,4 +1,4 @@
-export {}
+export { }
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
@@ -6,15 +6,18 @@ const width = canvas.width;
 const height = canvas.height;
 
 
-const STATE_PTR = 0;                 // first bytes for State
-const INPUT_PTR = STATE_PTR + 256;    // next chunk for Input
-const PIXELS_PTR = 1024;             // somewhere further (enough room for 600*400 pixels)
+const STATE_SIZE = 32;   // 5 floats, padded
+const INPUT_SIZE = 4;    // 4 bools
+
+const STATE_PTR = 0;
+const INPUT_PTR = STATE_PTR + STATE_SIZE;
+const PIXELS_PTR = INPUT_PTR + INPUT_SIZE + 32; // leave some padding
 
 const wasmResponse = await fetch("./ZigGameRuntime.wasm");
 const wasmFile = await wasmResponse.arrayBuffer();
 
 const { instance } = await WebAssembly.instantiate(wasmFile, {});
-
+// webdev pisses me off
 console.log("WASM Exports:", instance.exports);
 
 const { memory, update, draw } = instance.exports as {
@@ -24,14 +27,23 @@ const { memory, update, draw } = instance.exports as {
 };
 
 
-// State is 5 floats (20 bytes) — but align to 32
-const stateView = new DataView(memory.buffer, STATE_PTR, 32);
+// Helper for debugging memory state
+function logMemory(label: string) {
+  const pages = memory.buffer.byteLength / 65536;
+  console.log(`[${label}] memory pages: ${pages}, size: ${memory.buffer.byteLength} bytes`);
+}
 
-// Input is 4 bools (4 bytes)
-const inputView = new DataView(memory.buffer, INPUT_PTR, 4);
+// Create fresh views
+function createViews() {
+  console.log("🔄 Rebuilding views on memory.buffer...");
+  return {
+    stateView: new DataView(memory.buffer, STATE_PTR, STATE_SIZE),
+    inputView: new DataView(memory.buffer, INPUT_PTR, INPUT_SIZE),
+    pixelBuffer: new Uint8ClampedArray(memory.buffer, PIXELS_PTR, width * height * 4),
+  };
+}
 
-// Pixels: RGBA u8 each
-const pixelBuffer = new Uint8ClampedArray(memory.buffer, PIXELS_PTR, width * height * 4);
+let { stateView, inputView, pixelBuffer } = createViews();
 
 // Track input
 const input = { w: false, a: false, s: false, d: false };
@@ -51,6 +63,13 @@ function frame(now: number) {
   const dt = (now - lastTime) / 1000;
   lastTime = now;
 
+  // Detect memory growth
+  if (pixelBuffer.byteLength === 0 || pixelBuffer.buffer !== memory.buffer) {
+    console.warn("⚠️ Detected memory growth/realloc!");
+    ({ stateView, inputView, pixelBuffer } = createViews());
+    logMemory("after grow");
+  }
+
   syncInput();
   update(dt, STATE_PTR, INPUT_PTR);
   draw(STATE_PTR, PIXELS_PTR);
@@ -60,4 +79,5 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
+logMemory("initial")
 requestAnimationFrame(frame);

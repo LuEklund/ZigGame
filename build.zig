@@ -18,8 +18,8 @@ pub fn build(b: *std.Build) void {
                     .root_module = mod,
                 });
                 exe.entry = .disabled;
-                exe.initial_memory = 30 * 65536;
-                exe.max_memory = 30 * 65536;
+                exe.initial_memory = 30 * 65536; // ~1.92MB (covers pixel buffer + stack)
+                exe.max_memory = 35 * 65536; // ~2.24MB (room for safety)
                 exe.shared_memory = false;
                 break :wasm exe;
             },
