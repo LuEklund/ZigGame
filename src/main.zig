@@ -1,7 +1,10 @@
 const rl = @import("raylib");
 const std = @import("std");
 const builtin = @import("builtin");
-const GameState = @import("game.zig").State;
+const Game = @import("game.zig");
+const GameState = Game.State;
+const width = Game.width;
+const heigth = Game.heigth;
 const Input = @import("game.zig").Input;
 const lib = @import("lib.zig");
 
@@ -37,7 +40,7 @@ pub fn main() !void {
 
     // rl.SetConfigFlags(rl.FLAG_WINDOW_RESIZABLE);
     rl.SetTraceLogLevel(rl.LOG_ERROR);
-    rl.InitWindow(600, 600, "ZigGame");
+    rl.InitWindow(width, heigth, "ZigGame");
     rl.SetTargetFPS(60);
 
     const buffer: []u32 = try allocator.alloc(u32, @intCast(rl.GetRenderWidth() * rl.GetRenderHeight()));

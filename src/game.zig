@@ -1,4 +1,8 @@
 const std = @import("std");
+
+pub const width: usize = 400;
+pub const heigth: usize = 400;
+
 pub const State = struct {
     pos_x: f32 = 0,
     pos_y: f32 = 0,
@@ -54,7 +58,7 @@ pub export fn update(dt: f32, state: *State, input: *Input) void {
 }
 
 pub export fn draw(state: *State, buffer: [*]Pixel) void {
-    // @memset(buffer[0..(w * h / 2)], .green);
+    @memset(buffer[0..(width * heigth)], .green);
 
     const box_x: i32 = @intFromFloat(state.pos_x);
     const box_y: i32 = @intFromFloat(state.pos_y);
@@ -65,8 +69,8 @@ pub export fn draw(state: *State, buffer: [*]Pixel) void {
 
             const x: i32 = box_x + @as(i32, @intCast(offset_x));
 
-            if (x >= 0 and y >= 0 and @as(usize, @intCast(x)) < 600 and @as(usize, @intCast(y)) < 600) {
-                const index = @as(usize, @intCast(x)) + @as(usize, @intCast(y)) * 600;
+            if (x >= 0 and y >= 0 and @as(usize, @intCast(x)) < width and @as(usize, @intCast(y)) < heigth) {
+                const index = @as(usize, @intCast(x)) + @as(usize, @intCast(y)) * width;
 
                 buffer[index] = .red;
             }
