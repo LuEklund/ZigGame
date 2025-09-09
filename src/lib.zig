@@ -28,7 +28,8 @@ pub const FileWatcher = struct {
 };
 
 pub const Game = struct {
-    lib_path: []const u8,
+    lib_path_buffer: [std.fs.max_path_bytes]u8,
+    lib_path_len: usize,
     dynlib: std.DynLib,
     file_watcher: FileWatcher,
 
@@ -60,12 +61,16 @@ pub const Game = struct {
         try file_watcher.addFile("zig-out/lib/");
 
         const dynlib: std.DynLib = try .open(lib_path.?);
+        std.log.debug("PATH {s}\n", .{lib_path.?});
 
-        return .{
-            .lib_path = lib_path.?,
+        var self: @This() = .{
+            .lib_path_len = lib_path.?.len,
+            .lib_path_buffer = undefined,
             .dynlib = dynlib,
             .file_watcher = file_watcher,
         };
+        @memcpy(self.lib_path_buffer[0..lib_path.?.len], lib_path.?[0..]);
+        return self;
     }
 
     pub fn deinit(self: *@This()) void {
@@ -75,8 +80,9 @@ pub const Game = struct {
 
     pub fn listen(self: *@This()) !bool {
         if (try self.file_watcher.listen()) blk: {
+            std.log.debug("Reloaded dynamic lib:\nLEN: {}, PATH {s}\n", .{ self.lib_path_len, self.lib_path_buffer[0..self.lib_path_len] });
             self.dynlib.close();
-            self.dynlib = std.DynLib.open(self.lib_path) catch break :blk;
+            self.dynlib = std.DynLib.open(self.lib_path_buffer[0..self.lib_path_len]) catch break :blk;
             try self.file_watcher.addFile("zig-out/lib/");
             return true;
         }

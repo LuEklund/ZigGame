@@ -51,8 +51,8 @@ pub export fn update(dt: f32, state: *State, input: *Input) void {
     state.dir_x += if (input.d) 1 else 0;
 
     state.elapsed_time += dt;
-    state.pos_x += state.dir_x * dt * 100;
-    state.pos_y += state.dir_y * dt * 100;
+    state.pos_x += state.dir_x * dt * 1000;
+    state.pos_y += state.dir_y * dt * 1000;
     // state.pos_x = @cos(state.elapsed_time * 100) * 30 + 100;
     // state.pos_y = @sin(state.elapsed_time * 100) * 30 + 100;
 }
@@ -72,7 +72,7 @@ pub export fn draw(state: *State, buffer: [*]Pixel) void {
             if (x >= 0 and y >= 0 and @as(usize, @intCast(x)) < width and @as(usize, @intCast(y)) < heigth) {
                 const index = @as(usize, @intCast(x)) + @as(usize, @intCast(y)) * width;
 
-                buffer[index] = .red;
+                buffer[index] = .initOpaque(0xFF, 0xFF, 0x0F);
             }
         }
     }
