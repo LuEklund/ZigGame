@@ -240,6 +240,9 @@ function App() {
         </div>
       </div>
       <div className="new-message">
+      <a href="/game">
+        <button >Join Game</button>
+      </a>
         <form
           onSubmit={onMessageSubmit}
           style={{
