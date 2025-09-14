@@ -60,6 +60,7 @@ pub struct Food {
 }
 
 #[spacetimedb::table(name = player, public)]
+#[spacetimedb::table(name = logged_out_player)]
 #[derive(Debug, Clone)]
 pub struct Player {
     #[primary_key]
@@ -68,22 +69,6 @@ pub struct Player {
     #[auto_inc]
     player_id: u32,
     name: String,
-}
-
-
-#[table(name = user, public)]
-pub struct User {
-    #[primary_key]
-    identity: Identity,
-    name: Option<String>,
-    online: bool,
-}
-
-#[table(name = message, public)]
-pub struct Message {
-    sender: Identity,
-    sent: Timestamp,
-    text: String,
 }
 
 
@@ -96,8 +81,22 @@ fn mass_to_radius(mass: u32) -> f32 {
     (mass as f32).sqrt()
 }
 
+#[spacetimedb::reducer(init)]
+pub fn init(ctx: &ReducerContext) -> Result<(), String> {
+    log::info!("Initializing...");
+    ctx.db.config().try_insert(Config {
+        id: 0,
+        world_size: 1000,
+    })?;
+    ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
+        scheduled_id: 0,
+        scheduled_at: ScheduleAt::Interval(Duration::from_millis(500).into()),
+    })?;
+    Ok(())
+}
+
 #[spacetimedb::reducer]
-pub fn spawn_food(ctx: &ReducerContext) -> Result<(), String> {
+pub fn spawn_food(ctx: &ReducerContext, _timer: SpawnFoodTimer) -> Result<(), String> {
     if ctx.db.player().count() == 0 {
         // Are there no logged in players? Skip food spawn.
         return Ok(());
@@ -133,75 +132,98 @@ pub fn spawn_food(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
-#[reducer]
-/// Clients invoke this reducer to set their user names.
-pub fn set_name(ctx: &ReducerContext, name: String) -> Result<(), String> {
-    let name = validate_name(name)?;
-    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        ctx.db.user().identity().update(User { name: Some(name), ..user });
-        Ok(())
+#[spacetimedb::reducer(client_connected)]
+pub fn connect(ctx: &ReducerContext) -> Result<(), String> {
+    if let Some(player) = ctx.db.logged_out_player().identity().find(&ctx.sender) {
+        ctx.db.player().insert(player.clone());
+        ctx.db
+            .logged_out_player()
+            .identity()
+            .delete(&player.identity);
     } else {
-        Err("Cannot set name for unknown user".to_string())
+        ctx.db.player().try_insert(Player {
+            identity: ctx.sender,
+            player_id: 0,
+            name: String::new(),
+        })?;
     }
-}
-
-/// Takes a name and checks if it's acceptable as a user's name.
-fn validate_name(name: String) -> Result<String, String> {
-    if name.is_empty() {
-        Err("Names must not be empty".to_string())
-    } else {
-        Ok(name)
-    }
-}
-
-#[reducer]
-/// Clients invoke this reducer to send messages.
-pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
-    let text = validate_message(text)?;
-    log::info!("{}", text);
-    ctx.db.message().insert(Message {
-        sender: ctx.sender,
-        text,
-        sent: ctx.timestamp,
-    });
     Ok(())
 }
 
-/// Takes a message's text and checks if it's acceptable to send.
-fn validate_message(text: String) -> Result<String, String> {
-    if text.is_empty() {
-        Err("Messages must not be empty".to_string())
-    } else {
-        Ok(text)
+#[spacetimedb::reducer(client_disconnected)]
+pub fn disconnect(ctx: &ReducerContext) -> Result<(), String> {
+    let player = ctx
+        .db
+        .player()
+        .identity()
+        .find(&ctx.sender)
+        .ok_or("Player not found")?;
+    let player_id = player.player_id;
+    ctx.db.logged_out_player().insert(player);
+    ctx.db.player().identity().delete(&ctx.sender);
+
+    // Remove any circles from the arena
+    for circle in ctx.db.circle().player_id().filter(&player_id) {
+        ctx.db.entity().entity_id().delete(&circle.entity_id);
+        ctx.db.circle().entity_id().delete(&circle.entity_id);
     }
+
+    Ok(())
+}
+const START_PLAYER_MASS: u32 = 15;
+
+#[spacetimedb::reducer]
+pub fn enter_game(ctx: &ReducerContext, name: String) -> Result<(), String> {
+    log::info!("Creating player with name {}", name);
+    let mut player: Player = ctx.db.player().identity().find(ctx.sender).ok_or("")?;
+    let player_id = player.player_id;
+    player.name = name;
+    ctx.db.player().identity().update(player);
+    spawn_player_initial_circle(ctx, player_id)?;
+
+    Ok(())
 }
 
-#[reducer(client_connected)]
-// Called when a client connects to a SpacetimeDB database server
-pub fn client_connected(ctx: &ReducerContext) {
-    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        // If this is a returning user, i.e. we already have a `User` with this `Identity`,
-        // set `online: true`, but leave `name` and `identity` unchanged.
-        ctx.db.user().identity().update(User { online: true, ..user });
-    } else {
-        // If this is a new user, create a `User` row for the `Identity`,
-        // which is online, but hasn't set a name.
-        ctx.db.user().insert(User {
-            name: None,
-            identity: ctx.sender,
-            online: true,
-        });
-    }
+fn spawn_player_initial_circle(ctx: &ReducerContext, player_id: u32) -> Result<Entity, String> {
+    let mut rng = ctx.rng();
+    let world_size = ctx
+        .db
+        .config()
+        .id()
+        .find(&0)
+        .ok_or("Config not found")?
+        .world_size;
+    let player_start_radius = mass_to_radius(START_PLAYER_MASS);
+    let x = rng.gen_range(player_start_radius..(world_size as f32 - player_start_radius));
+    let y = rng.gen_range(player_start_radius..(world_size as f32 - player_start_radius));
+    spawn_circle_at(
+        ctx,
+        player_id,
+        START_PLAYER_MASS,
+        DbVector2 { x, y },
+        ctx.timestamp,
+    )
 }
 
-#[reducer(client_disconnected)]
-// Called when a client disconnects from SpacetimeDB database server
-pub fn identity_disconnected(ctx: &ReducerContext) {
-    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        ctx.db.user().identity().update(User { online: false, ..user });
-    } else {
-        // This branch should be unreachable,
-        // as it doesn't make sense for a client to disconnect without connecting first.
-        log::warn!("Disconnect event for unknown user with identity {:?}", ctx.sender);
-    }
+fn spawn_circle_at(
+    ctx: &ReducerContext,
+    player_id: u32,
+    mass: u32,
+    position: DbVector2,
+    timestamp: Timestamp,
+) -> Result<Entity, String> {
+    let entity = ctx.db.entity().try_insert(Entity {
+        entity_id: 0,
+        position,
+        mass,
+    })?;
+
+    ctx.db.circle().try_insert(Circle {
+        entity_id: entity.entity_id,
+        player_id,
+        direction: DbVector2 { x: 0.0, y: 1.0 },
+        speed: 0.0,
+        last_split_time: timestamp,
+    })?;
+    Ok(entity)
 }
