@@ -9,6 +9,13 @@ pub const State = struct {
     dir_x: f32 = 0,
     dir_y: f32 = 0,
     elapsed_time: f32 = 0,
+    foods: [128]Food = undefined,
+    food_count: usize = 0,
+};
+
+pub const Food = extern struct {
+    x: i32 = 0,
+    y: i32 = 0,
 };
 
 pub const Input = extern struct {
@@ -41,6 +48,14 @@ pub const Pixel = extern struct {
     }
 };
 
+pub export fn spawnFood(state: *State, xPos: i32, yPos: i32) void {
+    state.foods[state.food_count] = .{ .x = xPos, .y = yPos };
+    state.food_count += 1;
+    std.log.debug("new count {d}\n", .{state.food_count});
+
+    std.log.debug("Spawned {any}\n", .{state.foods[state.food_count - 1]});
+}
+
 //TODO: COPY the state dont use the same!
 pub export fn update(dt: f32, state: *State, input: *Input) void {
     state.dir_y = 0;
@@ -53,6 +68,7 @@ pub export fn update(dt: f32, state: *State, input: *Input) void {
     state.elapsed_time += dt;
     state.pos_x += state.dir_x * dt * 100;
     state.pos_y += state.dir_y * dt * 100;
+
     // state.pos_x = @cos(state.elapsed_time * 100) * 30 + 100;
     // state.pos_y = @sin(state.elapsed_time * 100) * 30 + 100;
 }
@@ -62,17 +78,25 @@ pub export fn draw(state: *State, buffer: [*]Pixel) void {
 
     const box_x: i32 = @intFromFloat(state.pos_x);
     const box_y: i32 = @intFromFloat(state.pos_y);
+    drawCube(buffer, box_x, box_y, Pixel.initOpaque(0xFF, 0x00, 0x0F));
 
+    for (0..state.food_count) |i| {
+        std.log.debug("NUm draw {d}\n", .{i});
+        drawCube(buffer, state.foods[i].x, state.foods[i].y, Pixel.initOpaque(0x00, 0x00, 0xFF));
+    }
+}
+
+fn drawCube(buffer: [*]Pixel, xPos: i32, yPos: i32, color: Pixel) void {
     for (0..10) |offset_y| {
         for (0..10) |offset_x| {
-            const y: i32 = box_y + @as(i32, @intCast(offset_y));
+            const y: i32 = yPos + @as(i32, @intCast(offset_y));
 
-            const x: i32 = box_x + @as(i32, @intCast(offset_x));
+            const x: i32 = xPos + @as(i32, @intCast(offset_x));
 
             if (x >= 0 and y >= 0 and @as(usize, @intCast(x)) < width and @as(usize, @intCast(y)) < heigth) {
                 const index = @as(usize, @intCast(x)) + @as(usize, @intCast(y)) * width;
 
-                buffer[index] = .initOpaque(0xFF, 0xFF, 0x0F);
+                buffer[index] = color;
             }
         }
     }
