@@ -1,4 +1,9 @@
 use spacetimedb::{table, reducer, Table, ReducerContext, Identity, Timestamp};
+use spacetimedb::rand::Rng;
+use spacetimedb::StdbRng;
+use spacetimedb::SpacetimeType;
+use spacetimedb::ScheduleAt;
+use std::time::Duration;
 
 
 #[spacetimedb::table(name = spawn_food_timer, scheduled(spawn_food))]
@@ -14,13 +19,6 @@ pub struct Config {
     #[primary_key]
     pub id: u32,
     pub world_size: u64,
-}
-
-// This allows us to store 2D points in tables.
-#[derive(SpacetimeType, Clone, Debug)]
-pub struct DbVector2 {
-    pub x: f32,
-    pub y: f32,
 }
 
 // This allows us to store 2D points in tables.
@@ -170,60 +168,60 @@ pub fn disconnect(ctx: &ReducerContext) -> Result<(), String> {
 
     Ok(())
 }
-const START_PLAYER_MASS: u32 = 15;
+// const START_PLAYER_MASS: u32 = 15;
 
-#[spacetimedb::reducer]
-pub fn enter_game(ctx: &ReducerContext, name: String) -> Result<(), String> {
-    log::info!("Creating player with name {}", name);
-    let mut player: Player = ctx.db.player().identity().find(ctx.sender).ok_or("")?;
-    let player_id = player.player_id;
-    player.name = name;
-    ctx.db.player().identity().update(player);
-    spawn_player_initial_circle(ctx, player_id)?;
+// #[spacetimedb::reducer]
+// pub fn enter_game(ctx: &ReducerContext, name: String) -> Result<(), String> {
+//     log::info!("Creating player with name {}", name);
+//     let mut player: Player = ctx.db.player().identity().find(ctx.sender).ok_or("")?;
+//     let player_id = player.player_id;
+//     player.name = name;
+//     ctx.db.player().identity().update(player);
+//     spawn_player_initial_circle(ctx, player_id)?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-fn spawn_player_initial_circle(ctx: &ReducerContext, player_id: u32) -> Result<Entity, String> {
-    let mut rng = ctx.rng();
-    let world_size = ctx
-        .db
-        .config()
-        .id()
-        .find(&0)
-        .ok_or("Config not found")?
-        .world_size;
-    let player_start_radius = mass_to_radius(START_PLAYER_MASS);
-    let x = rng.gen_range(player_start_radius..(world_size as f32 - player_start_radius));
-    let y = rng.gen_range(player_start_radius..(world_size as f32 - player_start_radius));
-    spawn_circle_at(
-        ctx,
-        player_id,
-        START_PLAYER_MASS,
-        DbVector2 { x, y },
-        ctx.timestamp,
-    )
-}
+// fn spawn_player_initial_circle(ctx: &ReducerContext, player_id: u32) -> Result<Entity, String> {
+//     let mut rng = ctx.rng();
+//     let world_size = ctx
+//         .db
+//         .config()
+//         .id()
+//         .find(&0)
+//         .ok_or("Config not found")?
+//         .world_size;
+//     let player_start_radius = mass_to_radius(START_PLAYER_MASS);
+//     let x = rng.gen_range(player_start_radius..(world_size as f32 - player_start_radius));
+//     let y = rng.gen_range(player_start_radius..(world_size as f32 - player_start_radius));
+//     spawn_circle_at(
+//         ctx,
+//         player_id,
+//         START_PLAYER_MASS,
+//         DbVector2 { x, y },
+//         ctx.timestamp,
+//     )
+// }
 
-fn spawn_circle_at(
-    ctx: &ReducerContext,
-    player_id: u32,
-    mass: u32,
-    position: DbVector2,
-    timestamp: Timestamp,
-) -> Result<Entity, String> {
-    let entity = ctx.db.entity().try_insert(Entity {
-        entity_id: 0,
-        position,
-        mass,
-    })?;
+// fn spawn_circle_at(
+//     ctx: &ReducerContext,
+//     player_id: u32,
+//     mass: u32,
+//     position: DbVector2,
+//     timestamp: Timestamp,
+// ) -> Result<Entity, String> {
+//     let entity = ctx.db.entity().try_insert(Entity {
+//         entity_id: 0,
+//         position,
+//         mass,
+//     })?;
 
-    ctx.db.circle().try_insert(Circle {
-        entity_id: entity.entity_id,
-        player_id,
-        direction: DbVector2 { x: 0.0, y: 1.0 },
-        speed: 0.0,
-        last_split_time: timestamp,
-    })?;
-    Ok(entity)
-}
+//     ctx.db.circle().try_insert(Circle {
+//         entity_id: entity.entity_id,
+//         player_id,
+//         direction: DbVector2 { x: 0.0, y: 1.0 },
+//         speed: 0.0,
+//         last_split_time: timestamp,
+//     })?;
+//     Ok(entity)
+// }

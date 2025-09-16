@@ -32,32 +32,42 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
+import { DbVector2 as __DbVector2 } from "./db_vector_2_type";
 
-export type SetName = {
-  name: string,
+export type Circle = {
+  entityId: number,
+  playerId: number,
+  direction: __DbVector2,
+  speed: number,
+  lastSplitTime: Timestamp,
 };
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace SetName {
+export namespace Circle {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
-      new ProductTypeElement("name", AlgebraicType.createStringType()),
+      new ProductTypeElement("entityId", AlgebraicType.createU32Type()),
+      new ProductTypeElement("playerId", AlgebraicType.createU32Type()),
+      new ProductTypeElement("direction", __DbVector2.getTypeScriptAlgebraicType()),
+      new ProductTypeElement("speed", AlgebraicType.createF32Type()),
+      new ProductTypeElement("lastSplitTime", AlgebraicType.createTimestampType()),
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: SetName): void {
-    SetName.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: Circle): void {
+    Circle.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): SetName {
-    return SetName.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): Circle {
+    return Circle.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }
+
 

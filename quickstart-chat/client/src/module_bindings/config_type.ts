@@ -32,32 +32,34 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
-
-export type SendMessage = {
-  text: string,
+export type Config = {
+  id: number,
+  worldSize: bigint,
 };
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace SendMessage {
+export namespace Config {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
-      new ProductTypeElement("text", AlgebraicType.createStringType()),
+      new ProductTypeElement("id", AlgebraicType.createU32Type()),
+      new ProductTypeElement("worldSize", AlgebraicType.createU64Type()),
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: SendMessage): void {
-    SendMessage.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: Config): void {
+    Config.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): SendMessage {
-    return SendMessage.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): Config {
+    return Config.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }
+
 

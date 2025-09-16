@@ -7,12 +7,13 @@
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import  App  from "./App";
+// import  App  from "./App";
+import  ZigGame  from "./game";
 
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
-    <App />
+    <ZigGame />
   </StrictMode>
 );
 

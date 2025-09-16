@@ -33,27 +33,32 @@ import {
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
 
-export type ClientConnected = {};
+import { SpawnFoodTimer as __SpawnFoodTimer } from "./spawn_food_timer_type";
+
+export type SpawnFood = {
+  timer: __SpawnFoodTimer,
+};
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace ClientConnected {
+export namespace SpawnFood {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
+      new ProductTypeElement("timer", __SpawnFoodTimer.getTypeScriptAlgebraicType()),
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: ClientConnected): void {
-    ClientConnected.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: SpawnFood): void {
+    SpawnFood.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): ClientConnected {
-    return ClientConnected.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): SpawnFood {
+    return SpawnFood.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }
