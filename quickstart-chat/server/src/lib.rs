@@ -73,7 +73,7 @@ pub struct Player {
 
 const FOOD_MASS_MIN: u32 = 2;
 const FOOD_MASS_MAX: u32 = 4;
-const TARGET_FOOD_COUNT: usize = 600;
+const TARGET_FOOD_COUNT: usize = 20;
 
 fn mass_to_radius(mass: u32) -> f32 {
     (mass as f32).sqrt()
@@ -88,13 +88,15 @@ pub fn init(ctx: &ReducerContext) -> Result<(), String> {
     })?;
     ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
         scheduled_id: 0,
-        scheduled_at: ScheduleAt::Interval(Duration::from_millis(500).into()),
+        scheduled_at: ScheduleAt::Interval(Duration::from_millis(4000).into()),
     })?;
     Ok(())
 }
 
 #[spacetimedb::reducer]
 pub fn spawn_food(ctx: &ReducerContext, _timer: SpawnFoodTimer) -> Result<(), String> {
+    
+    log::info!("SERVER SPAWNED FOOD");
     if ctx.db.player().count() == 0 {
         // Are there no logged in players? Skip food spawn.
         return Ok(());
@@ -110,7 +112,7 @@ pub fn spawn_food(ctx: &ReducerContext, _timer: SpawnFoodTimer) -> Result<(), St
 
     let mut rng = ctx.rng();
     let mut food_count = ctx.db.food().count();
-    while food_count < TARGET_FOOD_COUNT as u64 {
+    // while food_count < TARGET_FOOD_COUNT as u64 {
         let food_mass = rng.gen_range(FOOD_MASS_MIN..FOOD_MASS_MAX);
         let food_radius = mass_to_radius(food_mass);
         let x = rng.gen_range(food_radius..world_size as f32 - food_radius);
@@ -125,7 +127,7 @@ pub fn spawn_food(ctx: &ReducerContext, _timer: SpawnFoodTimer) -> Result<(), St
         })?;
         food_count += 1;
         log::info!("Spawned food! {}", entity.entity_id);
-    }
+    // }
 
     Ok(())
 }
@@ -138,7 +140,7 @@ pub fn connect(ctx: &ReducerContext) -> Result<(), String> {
             .logged_out_player()
             .identity()
             .delete(&player.identity);
-    } else {
+    } else if ctx.db.player().identity().find(&ctx.sender).is_none(){
         ctx.db.player().try_insert(Player {
             identity: ctx.sender,
             player_id: 0,

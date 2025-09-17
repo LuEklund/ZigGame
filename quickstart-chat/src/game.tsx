@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { DbConnection, type ErrorContext, type EventContext } from '../client/src/module_bindings';
+import { DbConnection, SpawnFood, type ErrorContext, type EventContext } from '../client/src/module_bindings';
 import { Identity } from '@clockworklabs/spacetimedb-sdk';
 
 export default function ZigGame() {
+  var foodQueue = false;
+
   //Database
   const [connected, setConnected] = useState<boolean>(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -21,12 +23,16 @@ export default function ZigGame() {
         'Connected to SpacetimeDB with identity:',
         identity.toHexString()
       );
-    // Subscribe to the 'food' table
-      console.log('Food table updated:');
+    const sub = conn
+      .subscriptionBuilder().onApplied(() => {
+        console.log("Subscribed to food");
+      }).subscribe(['SELECT * FROM food'])
+      conn.db.food.onInsert(() => {
+        foodQueue = true;
+      })
 
-    conn.db.food.onInsert(() => {
-        console.log('Food table updated:');
-    });
+      console.log('________________________');
+
       // Update your game state here to render the new food
     };
 
@@ -115,6 +121,7 @@ export default function ZigGame() {
         inputView.setUint8(2, input.s ? 1 : 0);
         inputView.setUint8(3, input.d ? 1 : 0);
       }
+         
 
       let lastTime = performance.now();
       function frame(now: number) {
@@ -129,7 +136,14 @@ export default function ZigGame() {
 
         syncInput();
         update(dt, STATE_PTR, INPUT_PTR);
+        if (foodQueue == true)
+        {
+          foodQueue = false;
+          // input.d = true;
+          console.log("spawned food");
+        }
         draw(STATE_PTR, PIXELS_PTR);
+
 
         ctx.putImageData(new ImageData(pixelBuffer, width, height), 0, 0);
 
