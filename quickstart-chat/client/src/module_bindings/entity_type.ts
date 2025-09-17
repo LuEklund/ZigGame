@@ -32,29 +32,38 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
+import { DbVector2 as __DbVector2 } from "./db_vector_2_type";
 
-export type IdentityDisconnected = {};
+export type Entity = {
+  entityId: number,
+  position: __DbVector2,
+  mass: number,
+};
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace IdentityDisconnected {
+export namespace Entity {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
+      new ProductTypeElement("entityId", AlgebraicType.createU32Type()),
+      new ProductTypeElement("position", __DbVector2.getTypeScriptAlgebraicType()),
+      new ProductTypeElement("mass", AlgebraicType.createU32Type()),
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: IdentityDisconnected): void {
-    IdentityDisconnected.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: Entity): void {
+    Entity.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): IdentityDisconnected {
-    return IdentityDisconnected.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): Entity {
+    return Entity.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }
+
 
