@@ -1,63 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { DbConnection, SpawnFood, type ErrorContext, type EventContext } from '../client/src/module_bindings';
+import { DbConnection, Food, type ErrorContext, type EventContext} from '../client/src/module_bindings';
 import { Identity } from '@clockworklabs/spacetimedb-sdk';
 
 export default function ZigGame() {
-  var foodQueue = false;
-
   //Database
   const [connected, setConnected] = useState<boolean>(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [conn, setConn] = useState<DbConnection | null>(null);
   
-    useEffect(() => {
-    const onConnect = (
-      conn: DbConnection,
-      identity: Identity,
-      token: string
-    ) => {
-      setIdentity(identity);
-      setConnected(true);
-      localStorage.setItem('auth_token', token);
-      console.log(
-        'Connected to SpacetimeDB with identity:',
-        identity.toHexString()
-      );
-    const sub = conn
-      .subscriptionBuilder().onApplied(() => {
-        console.log("Subscribed to food");
-      }).subscribe(['SELECT * FROM food'])
-      conn.db.food.onInsert(() => {
-        foodQueue = true;
-      })
-
-      console.log('________________________');
-
-      // Update your game state here to render the new food
-    };
-
-    const onDisconnect = () => {
-      console.log('Disconnected from SpacetimeDB');
-      setConnected(false);
-    };
-
-    const onConnectError = (_ctx: ErrorContext, err: Error) => {
-      console.log('Error connecting to SpacetimeDB:', err);
-    };
-
-    setConn(
-    DbConnection.builder()
-    .withUri('ws://localhost:3000')
-    .withModuleName('quickstart-chat')
-    .withToken(localStorage.getItem('auth_token') || '')
-    .onConnect(onConnect)     // <- once this runs, your Rust `connect` reducer has already fired
-    .onDisconnect(onDisconnect)
-    .onConnectError(onConnectError)
-    .build()
-);
-  }, []);
-
-
   //The game
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -70,7 +20,7 @@ export default function ZigGame() {
       const width = canvas.width;
       const height = canvas.height;
 
-      const STATE_SIZE = 32;
+      const STATE_SIZE = 1056;
       const INPUT_SIZE = 4;
 
       const STATE_PTR = 0;
@@ -80,11 +30,12 @@ export default function ZigGame() {
       const wasmResponse = await fetch("./ZigGameRuntime.wasm");
       const wasmFile = await wasmResponse.arrayBuffer();
       const { instance } = await WebAssembly.instantiate(wasmFile, {});
-      // console.log("WASM Exports:", instance.exports);
+      console.log("WASM Exports:", instance.exports);
 
-      const { memory, update, draw } = instance.exports as {
+      const { memory, update, spawnFood, draw } = instance.exports as {
         memory: WebAssembly.Memory;
         update: (dt: number, statePtr: number, inputPtr: number) => void;
+        spawnFood: (statePtr: number, posX: number, posY: number) => void;
         draw: (statePtr: number, bufferPtr: number) => void;
       };
 
@@ -121,6 +72,57 @@ export default function ZigGame() {
         inputView.setUint8(2, input.s ? 1 : 0);
         inputView.setUint8(3, input.d ? 1 : 0);
       }
+
+
+      const onConnect = (
+      conn: DbConnection,
+      identity: Identity,
+      token: string
+    ) => {
+      setIdentity(identity);
+      setConnected(true);
+      localStorage.setItem('auth_token', token);
+      console.log(
+        'Connected to SpacetimeDB with identity:',
+        identity.toHexString()
+      );
+    const sub = conn
+      .subscriptionBuilder().onApplied(() => {
+        console.log("Subscribed to food");
+      }).subscribe(['SELECT * FROM food'])
+      conn.db.food.onInsert((ctx: EventContext, food: Food) => {
+        // if (entity) {
+        //   // Position is a DbVector2, so access x and y
+        //   spawnFood(STATE_PTR, entity.position.x, entity.position.y);
+        //   console.log(`✅ Spawned food at (${entity.position.x}, ${entity.position.y})`);
+        // }
+        spawnFood(STATE_PTR, 20,20);
+      })
+
+      console.log('________________________');
+
+      // Update your game state here to render the new food
+    };
+
+    const onDisconnect = () => {
+      console.log('Disconnected from SpacetimeDB');
+      setConnected(false);
+    };
+
+    const onConnectError = (_ctx: ErrorContext, err: Error) => {
+      console.log('Error connecting to SpacetimeDB:', err);
+    };
+
+    setConn(
+    DbConnection.builder()
+    .withUri('ws://localhost:3000')
+    .withModuleName('quickstart-chat')
+    .withToken(localStorage.getItem('auth_token') || '')
+    .onConnect(onConnect)     // <- once this runs, your Rust `connect` reducer has already fired
+    .onDisconnect(onDisconnect)
+    .onConnectError(onConnectError)
+    .build()
+);
          
 
       let lastTime = performance.now();
@@ -133,18 +135,11 @@ export default function ZigGame() {
           ({ stateView, inputView, pixelBuffer } = createViews());
           logMemory("after grow");
         }
-
+        
         syncInput();
         update(dt, STATE_PTR, INPUT_PTR);
-        if (foodQueue == true)
-        {
-          foodQueue = false;
-          // input.d = true;
-          console.log("spawned food");
-        }
         draw(STATE_PTR, PIXELS_PTR);
-
-
+          
         ctx.putImageData(new ImageData(pixelBuffer, width, height), 0, 0);
 
         animationId = requestAnimationFrame(frame);
@@ -165,3 +160,5 @@ export default function ZigGame() {
 
   return <canvas ref={canvasRef} id="game" width={400} height={400} />;
 }
+
+
