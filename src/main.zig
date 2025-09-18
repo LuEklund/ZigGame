@@ -94,10 +94,16 @@ pub fn main() !void {
             input.d = if (rl.IsKeyDown(rl.KEY_D)) true else input.d;
             input.w = if (rl.IsKeyDown(rl.KEY_W)) true else input.w;
             input.s = if (rl.IsKeyDown(rl.KEY_S)) true else input.s;
+            // if (rl.IsKeyPressed(rl.KEY_P)) spawnFood(
+            //     &current_state,
+            //     @mod(@as(i32, @intFromFloat(accumulated_time)), 400),
+            //     @mod(@as(i32, @intFromFloat(accumulated_time * 11)), 400),
+            // );
+
             if (rl.IsKeyPressed(rl.KEY_P)) spawnFood(
                 &current_state,
-                @mod(@as(i32, @intFromFloat(accumulated_time)), 400),
-                @mod(@as(i32, @intFromFloat(accumulated_time * 11)), 400),
+                20,
+                20,
             );
 
             if (rl.IsKeyPressed(rl.KEY_R)) {

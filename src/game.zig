@@ -2,6 +2,9 @@ const std = @import("std");
 
 pub const width: usize = 400;
 pub const heigth: usize = 400;
+// comptime {
+//     @compileLog(@sizeOf(State));
+// }
 
 pub const State = struct {
     pos_x: f32 = 0,
@@ -51,9 +54,6 @@ pub const Pixel = extern struct {
 pub export fn spawnFood(state: *State, xPos: i32, yPos: i32) void {
     state.foods[state.food_count] = .{ .x = xPos, .y = yPos };
     state.food_count += 1;
-    std.log.debug("new count {d}\n", .{state.food_count});
-
-    std.log.debug("Spawned {any}\n", .{state.foods[state.food_count - 1]});
 }
 
 //TODO: COPY the state dont use the same!
@@ -81,7 +81,6 @@ pub export fn draw(state: *State, buffer: [*]Pixel) void {
     drawCube(buffer, box_x, box_y, Pixel.initOpaque(0xFF, 0x00, 0x0F));
 
     for (0..state.food_count) |i| {
-        std.log.debug("NUm draw {d}\n", .{i});
         drawCube(buffer, state.foods[i].x, state.foods[i].y, Pixel.initOpaque(0x00, 0x00, 0xFF));
     }
 }

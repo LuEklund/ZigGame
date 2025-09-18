@@ -12,11 +12,12 @@ pub fn build(b: *std.Build) void {
                     .target = target,
                     .optimize = optimize,
                 });
-                mod.export_symbol_names = &.{ "update", "draw" };
+                // mod.export_symbol_names = &.{ "update", "draw", "spawnFood" };
                 const exe = b.addExecutable(.{
                     .name = "ZigGameRuntime",
                     .root_module = mod,
                 });
+                exe.rdynamic = true;
                 exe.entry = .disabled;
                 exe.initial_memory = 30 * 65536; // ~1.92MB (covers pixel buffer + stack)
                 exe.max_memory = 35 * 65536; // ~2.24MB (room for safety)
