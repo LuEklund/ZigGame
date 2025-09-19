@@ -84,7 +84,7 @@ pub fn init(ctx: &ReducerContext) -> Result<(), String> {
     log::info!("Initializing...");
     ctx.db.config().try_insert(Config {
         id: 0,
-        world_size: 1000,
+        world_size: 350,
     })?;
     ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
         scheduled_id: 0,
