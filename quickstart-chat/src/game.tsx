@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DbConnection, Food, type ErrorContext, type EventContext} from '../client/src/module_bindings';
+import { DbConnection, DbVector2, Food, type ErrorContext, type EventContext} from '../client/src/module_bindings';
 import { Identity } from '@clockworklabs/spacetimedb-sdk';
 
 export default function ZigGame() {
@@ -56,7 +56,6 @@ export default function ZigGame() {
         const entity = conn.db.entity.entityId.find(food.entityId);
         
         // Now we have access to spawnFood and statePtr!
-        // ...Object.fromEntries(Object.keys(food).map(key => (food as any)[key]));
         if (spawnFood && statePtr !== 0) {
           spawnFood(statePtr, entity!.position.x, entity!.position.y);
           console.log(`✅ Spawned food at (${entity!.position.x}, ${entity!.position.y})`);
@@ -106,7 +105,7 @@ export default function ZigGame() {
       const width = canvas.width;
       const height = canvas.height;
 
-      const STATE_SIZE = 1056;
+      const STATE_SIZE = 1208;
       const INPUT_SIZE = 4;
 
       const STATE_PTR = 1;
@@ -160,10 +159,16 @@ export default function ZigGame() {
         window.addEventListener("keyup", handleKeyUp);
 
         function syncInput() {
-          inputView.setUint8(0, input.a ? 1 : 0);
-          inputView.setUint8(1, input.w ? 1 : 0);
-          inputView.setUint8(2, input.s ? 1 : 0);
-          inputView.setUint8(3, input.d ? 1 : 0);
+          if (conn)
+          {
+            var direction: DbVector2 = {x: 1, y:0};
+            conn!.reducers.updatePlayerInput(direction);
+
+          }
+          // inputView.setUint8(0, input.a ? 1 : 0);
+          // inputView.setUint8(1, input.w ? 1 : 0);
+          // inputView.setUint8(2, input.s ? 1 : 0);
+          // inputView.setUint8(3, input.d ? 1 : 0);
         }
 
         let lastTime = performance.now();
@@ -178,6 +183,7 @@ export default function ZigGame() {
           }
           
           syncInput();
+
           update(dt, STATE_PTR, INPUT_PTR);
           draw(STATE_PTR, PIXELS_PTR);
             
