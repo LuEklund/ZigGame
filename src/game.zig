@@ -7,18 +7,23 @@ pub const heigth: usize = 400;
 // }
 
 pub const State = struct {
-    pos_x: f32 = 0,
-    pos_y: f32 = 0,
-    dir_x: f32 = 0,
-    dir_y: f32 = 0,
     elapsed_time: f32 = 0,
     foods: [128]Food = undefined,
+    players: [10]Player = undefined,
     food_count: usize = 0,
+    player_count: usize = 0,
 };
 
 pub const Food = extern struct {
     x: i32 = 0,
     y: i32 = 0,
+};
+
+pub const Player = extern struct {
+    pos_x: f32 = 0,
+    pos_y: f32 = 0,
+    dir_x: f32 = 0,
+    dir_y: f32 = 0,
 };
 
 pub const Input = extern struct {
@@ -58,16 +63,19 @@ pub export fn spawnFood(state: *State, xPos: i32, yPos: i32) void {
 
 //TODO: COPY the state dont use the same!
 pub export fn update(dt: f32, state: *State, input: *Input) void {
-    state.dir_y = 0;
-    state.dir_x = 0;
-    state.dir_y += if (input.w) -1 else 0;
-    state.dir_y += if (input.s) 1 else 0;
-    state.dir_x += if (input.a) -1 else 0;
-    state.dir_x += if (input.d) 1 else 0;
+    _ = state;
+    _ = dt;
+    _ = input;
+    // state.dir_y = 0;
+    // state.dir_x = 0;
+    // state.dir_y += if (input.w) -1 else 0;
+    // state.dir_y += if (input.s) 1 else 0;
+    // state.dir_x += if (input.a) -1 else 0;
+    // state.dir_x += if (input.d) 1 else 0;
 
-    state.elapsed_time += dt;
-    state.pos_x += state.dir_x * dt * 100;
-    state.pos_y += state.dir_y * dt * 100;
+    // state.elapsed_time += dt;
+    // state.pos_x += state.dir_x * dt * 100;
+    // state.pos_y += state.dir_y * dt * 100;
 
     // state.pos_x = @cos(state.elapsed_time * 100) * 30 + 100;
     // state.pos_y = @sin(state.elapsed_time * 100) * 30 + 100;
@@ -76,12 +84,15 @@ pub export fn update(dt: f32, state: *State, input: *Input) void {
 pub export fn draw(state: *State, buffer: [*]Pixel) void {
     @memset(buffer[0..(width * heigth)], .green);
 
-    const box_x: i32 = @intFromFloat(state.pos_x);
-    const box_y: i32 = @intFromFloat(state.pos_y);
-    drawCube(buffer, box_x, box_y, Pixel.initOpaque(0xFF, 0x00, 0x0F));
+    // const box_x: i32 = @intFromFloat(state.pos_x);
+    // const box_y: i32 = @intFromFloat(state.pos_y);
+    // drawCube(buffer, box_x, box_y, Pixel.initOpaque(0xFF, 0x00, 0x0F));
+    for (0..@min(state.player_count, state.players.len)) |i| {
+        drawCube(buffer, @intFromFloat(state.players[i].pos_x), @intFromFloat(state.players[i].pos_y), .initOpaque(0xFF, 0x00, 0x00));
+    }
 
-    for (0..state.food_count) |i| {
-        drawCube(buffer, state.foods[i].x, state.foods[i].y, Pixel.initOpaque(0x00, 0x00, 0xFF));
+    for (0..@min(state.food_count, state.foods.len)) |i| {
+        drawCube(buffer, state.foods[i].x, state.foods[i].y, .initOpaque(0x00, 0x00, 0xFF));
     }
 }
 
