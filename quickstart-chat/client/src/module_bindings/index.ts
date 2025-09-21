@@ -38,6 +38,8 @@ import { Connect } from "./connect_reducer.ts";
 export { Connect };
 import { Disconnect } from "./disconnect_reducer.ts";
 export { Disconnect };
+import { EnterGame } from "./enter_game_reducer.ts";
+export { EnterGame };
 import { MoveAllPlayers } from "./move_all_players_reducer.ts";
 export { MoveAllPlayers };
 import { SpawnFood } from "./spawn_food_reducer.ts";
@@ -165,6 +167,10 @@ const REMOTE_MODULE = {
       reducerName: "disconnect",
       argsType: Disconnect.getTypeScriptAlgebraicType(),
     },
+    enter_game: {
+      reducerName: "enter_game",
+      argsType: EnterGame.getTypeScriptAlgebraicType(),
+    },
     move_all_players: {
       reducerName: "move_all_players",
       argsType: MoveAllPlayers.getTypeScriptAlgebraicType(),
@@ -209,6 +215,7 @@ const REMOTE_MODULE = {
 export type Reducer = never
 | { name: "Connect", args: Connect }
 | { name: "Disconnect", args: Disconnect }
+| { name: "EnterGame", args: EnterGame }
 | { name: "MoveAllPlayers", args: MoveAllPlayers }
 | { name: "SpawnFood", args: SpawnFood }
 | { name: "UpdatePlayerInput", args: UpdatePlayerInput }
@@ -231,6 +238,22 @@ export class RemoteReducers {
 
   removeOnDisconnect(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("disconnect", callback);
+  }
+
+  enterGame(name: string) {
+    const __args = { name };
+    let __writer = new BinaryWriter(1024);
+    EnterGame.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("enter_game", __argsBuffer, this.setCallReducerFlags.enterGameFlags);
+  }
+
+  onEnterGame(callback: (ctx: ReducerEventContext, name: string) => void) {
+    this.connection.onReducer("enter_game", callback);
+  }
+
+  removeOnEnterGame(callback: (ctx: ReducerEventContext, name: string) => void) {
+    this.connection.offReducer("enter_game", callback);
   }
 
   moveAllPlayers(timer: MoveAllPlayersTimer) {
@@ -284,6 +307,11 @@ export class RemoteReducers {
 }
 
 export class SetReducerFlags {
+  enterGameFlags: CallReducerFlags = 'FullUpdate';
+  enterGame(flags: CallReducerFlags) {
+    this.enterGameFlags = flags;
+  }
+
   moveAllPlayersFlags: CallReducerFlags = 'FullUpdate';
   moveAllPlayers(flags: CallReducerFlags) {
     this.moveAllPlayersFlags = flags;
