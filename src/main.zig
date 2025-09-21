@@ -38,6 +38,7 @@ pub fn main() !void {
     var update = try game.lookup(*const fn (f32, *GameState, *Input) callconv(.c) void, "update");
     var draw = try game.lookup(*const fn (*GameState, [*]u32) callconv(.c) void, "draw");
     var spawnFood = try game.lookup(*const fn (*GameState, i32, i32) callconv(.c) void, "spawnFood");
+    var spawnPlayer = try game.lookup(*const fn (*GameState, f32, f32) callconv(.c) void, "spawnPlayer");
 
     // rl.SetConfigFlags(rl.FLAG_WINDOW_RESIZABLE);
     rl.SetTraceLogLevel(rl.LOG_ERROR);
@@ -106,6 +107,12 @@ pub fn main() !void {
                 20,
             );
 
+            if (rl.IsKeyPressed(rl.KEY_P)) spawnPlayer(
+                &current_state,
+                40,
+                40,
+            );
+
             if (rl.IsKeyPressed(rl.KEY_R)) {
                 switch (playback_mode) {
                     .playing => {
@@ -153,6 +160,7 @@ pub fn main() !void {
             update = try game.lookup(@TypeOf(update), "update");
             draw = try game.lookup(@TypeOf(draw), "draw");
             spawnFood = try game.lookup(*const fn (*GameState, i32, i32) callconv(.c) void, "spawnFood");
+            spawnPlayer = try game.lookup(*const fn (*GameState, f32, f32) callconv(.c) void, "spawnPlayer");
         }
     }
 }

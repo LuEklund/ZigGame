@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DbConnection, DbVector2, Food, type ErrorContext, type EventContext} from '../client/src/module_bindings';
+import { Circle, DbConnection, DbVector2, Food, Player, type ErrorContext, type EventContext, type SubscriptionEventContext} from '../client/src/module_bindings';
 import { Identity } from '@clockworklabs/spacetimedb-sdk';
 
 export default function ZigGame() {
@@ -14,7 +14,21 @@ export default function ZigGame() {
   // WASM state - these will be available to database callbacks
   const [wasmReady, setWasmReady] = useState(false);
   const [spawnFood, setSpawnFood] = useState<((statePtr: number, posX: number, posY: number) => void) | null>(null);
+  const [spawnPlayer, setSpawnPlayer] = useState<((statePtr: number, posX: number, posY: number) => void) | null>(null);
   const [statePtr, setStatePtr] = useState(0);
+
+
+  function HandleSubscriptionApplied(ctx: SubscriptionEventContext ) {
+    ctx.reducers.enterGame("Lucas");
+    // console.log("⏳ try spawn player!");
+    // if (spawnPlayer)
+    // {
+
+    // console.log("✅ spawn player!");
+
+    //   spawnPlayer(statePtr, 50, 50);
+    // }
+  }
 
   // Database connection setup (runs once on mount)
   useEffect(() => {
@@ -37,20 +51,20 @@ export default function ZigGame() {
         return;
       }
 
-      // Now WASM is ready, set up the food listener
-      const entitySub = conn
-          .subscriptionBuilder()
-          .onApplied(() => {
-            console.log("✅ Entity table subscribed and cached!");
-          })
-      .subscribe(['SELECT * FROM entity']);
+      conn.subscriptionBuilder().onApplied(HandleSubscriptionApplied).subscribeToAllTables();
 
-      const sub = conn
-        .subscriptionBuilder()
-        .onApplied(() => {
-          console.log("✅ Subscribed to food");
-        })
-        .subscribe(['SELECT * FROM food']);
+      conn.db.circle.onInsert((ctx: EventContext, player: Circle) => {
+          console.warn("⚠️ AAAAAAAAAAAAAAAAAAAAAAA");
+          const player_entity = conn.db.entity.entityId.find(player.entityId);
+          
+        // Now we have access to spawnFood and statePtr!
+        if (spawnPlayer && statePtr !== 0) {
+          spawnPlayer(statePtr, player_entity!.position.x, player_entity!.position.y);
+          console.log(`✅ Spawned PLAYER at (${player_entity!.position.x}, ${player_entity!.position.y})`);
+        } else {
+          console.warn("⚠️ WASM not ready for spawning Players yet");
+        }
+      });
 
       conn.db.food.onInsert((ctx: EventContext, food: Food) => {
         const entity = conn.db.entity.entityId.find(food.entityId);
@@ -91,7 +105,7 @@ export default function ZigGame() {
     return () => {
       connection.disconnect();
     };
-  }, [wasmReady, spawnFood, statePtr]); // Re-run when WASM becomes ready
+  }, [wasmReady, spawnFood, spawnPlayer, statePtr]); // Re-run when WASM becomes ready
 
   // WASM and game initialization
   useEffect(() => {
@@ -118,15 +132,17 @@ export default function ZigGame() {
         const { instance } = await WebAssembly.instantiate(wasmFile, {});
         console.log("🎮 WASM Exports:", Object.keys(instance.exports));
 
-        const { memory, update, spawnFood, draw } = instance.exports as {
+        const { memory, update, spawnFood, spawnPlayer, draw } = instance.exports as {
           memory: WebAssembly.Memory;
           update: (dt: number, statePtr: number, inputPtr: number) => void;
           spawnFood: (statePtr: number, posX: number, posY: number) => void;
+          spawnPlayer: (statePtr: number, posX: number, posY: number) => void;
           draw: (statePtr: number, bufferPtr: number) => void;
         };
 
         // Store WASM functions and state in React state
         setSpawnFood(() => spawnFood);
+        setSpawnPlayer(() => spawnPlayer);
         setStatePtr(STATE_PTR);
         setWasmReady(true);
         

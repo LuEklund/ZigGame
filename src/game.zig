@@ -2,14 +2,16 @@ const std = @import("std");
 
 pub const width: usize = 400;
 pub const heigth: usize = 400;
+pub const max_food_count: usize = 128;
+pub const max_player_count: usize = 10;
 // comptime {
 //     @compileLog(@sizeOf(State));
 // }
 
 pub const State = struct {
     elapsed_time: f32 = 0,
-    foods: [128]Food = undefined,
-    players: [10]Player = undefined,
+    foods: [max_food_count]Food = undefined,
+    players: [max_player_count]Player = undefined,
     food_count: usize = 0,
     player_count: usize = 0,
 };
@@ -57,15 +59,29 @@ pub const Pixel = extern struct {
 };
 
 pub export fn spawnFood(state: *State, xPos: i32, yPos: i32) void {
-    state.foods[state.food_count] = .{ .x = xPos, .y = yPos };
-    state.food_count += 1;
+    if (state.food_count < max_food_count) {
+        state.foods[state.food_count] = .{ .x = xPos, .y = yPos };
+        state.food_count += 1;
+    }
+}
+
+pub export fn spawnPlayer(state: *State, xPos: f32, yPos: f32) void {
+    if (state.player_count < max_player_count) {
+        state.players[state.player_count] = .{ .pos_x = xPos, .pos_y = yPos };
+        state.player_count += 1;
+    }
 }
 
 //TODO: COPY the state dont use the same!
 pub export fn update(dt: f32, state: *State, input: *Input) void {
-    _ = state;
+    // _ = state;
     _ = dt;
     _ = input;
+
+    for (0..@min(state.player_count, state.players.len)) |i| {
+        state.players[i].pos_x += 0.1;
+    }
+
     // state.dir_y = 0;
     // state.dir_x = 0;
     // state.dir_y += if (input.w) -1 else 0;
