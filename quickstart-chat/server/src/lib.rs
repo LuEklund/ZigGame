@@ -97,10 +97,10 @@ pub fn init(ctx: &ReducerContext) -> Result<(), String> {
         id: 0,
         world_size: 400,
     })?;
-    ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
-        scheduled_id: 0,
-        scheduled_at: ScheduleAt::Interval(Duration::from_millis(10000).into()),
-    })?;
+    // ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
+    //     scheduled_id: 0,
+    //     scheduled_at: ScheduleAt::Interval(Duration::from_millis(10000).into()),
+    // })?;
     ctx.db
     .move_all_players_timer()
     .try_insert(MoveAllPlayersTimer {
@@ -145,6 +145,8 @@ pub fn move_all_players(ctx: &ReducerContext, _timer: MoveAllPlayersTimer) -> Re
         }
         let mut circle_entity = circle_entity.unwrap();
         let circle_radius = mass_to_radius(circle_entity.mass);
+        log::info!("Updated Entity {}", circle_entity.entity_id);
+        
         let direction = circle.direction * circle.speed;
         let new_pos =
             circle_entity.position + direction * mass_to_max_move_speed(circle_entity.mass);
@@ -288,8 +290,8 @@ fn spawn_circle_at(
     ctx.db.circle().try_insert(Circle {
         entity_id: entity.entity_id,
         player_id,
-        direction: DbVector2 { x: 0.0, y: 1.0 },
-        speed: 0.0,
+        direction: DbVector2 { x: 1.0, y: 1.0 },
+        speed: 1.0,
         last_split_time: timestamp,
     })?;
 
