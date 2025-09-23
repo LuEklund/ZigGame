@@ -145,16 +145,30 @@ pub fn move_all_players(ctx: &ReducerContext, _timer: MoveAllPlayersTimer) -> Re
         }
         let mut circle_entity = circle_entity.unwrap();
         let circle_radius = mass_to_radius(circle_entity.mass);
-        log::info!("Updated Entity {}", circle_entity.entity_id);
+
+        log::info!("circle.speed  {}", circle.speed);
+        log::info!("circle.direction pos x {}", circle.direction.x);
+        log::info!("circle.direction pos y {}", circle.direction.y);
+
         
         let direction = circle.direction * circle.speed;
+        log::info!("direction pos x {}", direction.x);
+        log::info!("direction pos y {}", direction.y);
+
         let new_pos =
             circle_entity.position + direction * mass_to_max_move_speed(circle_entity.mass);
         let min = circle_radius;
         let max = world_size as f32 - circle_radius;
         circle_entity.position.x = new_pos.x.clamp(min, max);
         circle_entity.position.y = new_pos.y.clamp(min, max);
+        log::info!("Updated circle {}", circle.entity_id);
+        log::info!("Updated Entity {}", circle_entity.entity_id);
+        log::info!("Updated new pos x {}", new_pos.x);
+        log::info!("Updated new pos y {}", new_pos.y);
+        log::info!("Updated circle_entity pos x {}", circle_entity.position.x);
+        log::info!("Updated circle_entity pos y {}", circle_entity.position.y);
         ctx.db.entity().entity_id().update(circle_entity);
+
     }
 
     Ok(())
@@ -290,10 +304,17 @@ fn spawn_circle_at(
     ctx.db.circle().try_insert(Circle {
         entity_id: entity.entity_id,
         player_id,
-        direction: DbVector2 { x: 1.0, y: 1.0 },
+        direction: DbVector2 { x: 1.0, y: 0.0 },
         speed: 1.0,
         last_split_time: timestamp,
     })?;
+
+    log::info!("Spawned Entity ID {}", entity.entity_id);
+    log::info!("Spawned Player ID {}", player_id);
+    // let mut player: Player = ctx.db.player().identity().find(player_id).ok_or("")?;
+    // log::info!("Spawned Player Entity ID {}", player.);
+
+
 
     log::info!("fr fr, Spawned circle");
 

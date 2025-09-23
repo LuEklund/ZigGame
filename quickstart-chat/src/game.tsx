@@ -55,44 +55,59 @@ export default function ZigGame() {
 
       conn.db.entity.onUpdate((ctx: EventContext, oldEntity: Entity, newEntity: Entity) => {
 
+        //TODO: FIX updateEntity to work on all entities!
+        
         console.warn("⚠️ REQUEST UPDATED ENTITY: " + newEntity.entityId);
         if (updateEntity && statePtr !== 0) {
           updateEntity(statePtr, newEntity.entityId, newEntity.position.x,  newEntity.position.y,  newEntity.mass);
           console.warn("✅ UPDATED ENTITY: " + newEntity.entityId);
+          console.warn("✅ new pos: " + newEntity.position.x);
        
         }
 
 
       });
 
-      conn.db.circle.onInsert((ctx: EventContext, player: Circle) => {
-          console.warn("⚠️ AAAAAAAAAAAAAAAAAAAAAAA");
-          const player_entity = conn.db.entity.entityId.find(player.entityId);
-          
-        // Now we have access to spawnFood and statePtr!
+      conn.db.entity.onInsert((ctx: EventContext, entity: Entity) => {
         if (spawnEntity && statePtr !== 0) {
-          spawnEntity(statePtr, player_entity!.entityId, player_entity!.position.x,  player_entity!.position.y,  player_entity!.mass);
-          const entitySize = JSON.stringify(player_entity).length;
+          console.log(`Entity ID: ${entity.entityId}`);
+
+          spawnEntity(statePtr, entity.entityId, entity.position.x,  entity.position.y,  entity.mass);
+          const entitySize = JSON.stringify(entity).length;
           console.log(`Entity size: ${entitySize} bytes`);
-          console.log(`✅ Spawned PLAYER at (${player_entity!.position.x}, ${player_entity!.position.y})`);
+          console.log(`⚠️⚠️⚠️⚠️⚠️⚠️✅ Spawned circle at (${entity!.position.x}, ${entity!.position.y})`);
         } else {
           console.warn("⚠️ WASM not ready for spawning Players yet");
         }
       });
 
-      conn.db.food.onInsert((ctx: EventContext, food: Food) => {
-        const entity = conn.db.entity.entityId.find(food.entityId);
-        
-        // Now we have access to spawnFood and statePtr!
-        if (spawnEntity && statePtr !== 0) {
-          spawnEntity(statePtr, entity!.entityId, entity!.position.x,  entity!.position.y,  entity!.mass);
-          console.log(`✅ Spawned food at (${entity!.position.x}, ${entity!.position.y})`);
-        } else {
-          console.warn("⚠️ WASM not ready for spawning food yet");
-        }
-      });
+      // conn.db.circle.onInsert((ctx: EventContext, circle: Circle) => {
+      //     const circle_entity = conn.db.entity.entityId.find(circle.entityId);
+      //   if (spawnEntity && statePtr !== 0) {
+      //     spawnEntity(statePtr, circle_entity!.entityId, circle_entity!.position.x,  circle_entity!.position.y,  circle_entity!.mass);
+      //     const entitySize = JSON.stringify(circle_entity).length;
+      //     console.log(`Entity size: ${entitySize} bytes`);
+      //     console.log(`✅ Spawned circle at (${circle_entity!.position.x}, ${circle_entity!.position.y})`);
+      //   } else {
+      //     console.warn("⚠️ WASM not ready for spawning Players yet");
+      //   }
+      // });
 
-      console.log('________________________');
+      // conn.db.food.onInsert((ctx: EventContext, food: Food) => {
+      //   const entity = conn.db.entity.entityId.find(food.entityId);
+        
+      //   // Now we have access to spawnFood and statePtr!
+      //   if (spawnEntity && statePtr !== 0) {
+      //     spawnEntity(statePtr, entity!.entityId, entity!.position.x,  entity!.position.y,  entity!.mass);
+      //     console.log(`✅ Spawned food at (${entity!.position.x}, ${entity!.position.y})`);
+      //   } else {
+      //     console.warn("⚠️ WASM not ready for spawning food yet");
+      //   }
+      // });
+
+      // const dir: DbVector2 = { x: 1, y: 0 };
+      // conn.reducers.updatePlayerInput(dir);
+
     };
 
     const onDisconnect = () => {
@@ -213,6 +228,7 @@ export default function ZigGame() {
           }
           
           syncInput();
+
 
           update(dt, STATE_PTR, INPUT_PTR);
           draw(STATE_PTR, PIXELS_PTR);
