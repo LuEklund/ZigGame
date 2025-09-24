@@ -14,7 +14,7 @@ pub const State = struct {
 };
 
 pub const Entity = extern struct {
-    id: u32 = 0,
+    id: i32 = 0,
     pos_x: f32 = 0,
     pos_y: f32 = 0,
     mass: u32 = 0,
@@ -50,18 +50,18 @@ pub const Pixel = extern struct {
     }
 };
 
-pub export fn updateEntity(state: *State, id: u32, pos_x: f32, pos_y: f32, mass: u32) void {
+pub export fn updateEntity(state: *State, id: i32, pos_x: f32, pos_y: f32, mass: u32) void {
     _ = mass;
     for (0..@min(state.entity_count, max_entity_count)) |i| {
         if (state.entities[i].id == id) {
             state.entities[i].pos_x = pos_x;
             state.entities[i].pos_y = pos_y;
+            return;
         }
-        return;
     }
 }
 
-pub export fn spawnEntity(state: *State, id: u32, pos_x: f32, pos_y: f32, mass: u32) void {
+pub export fn spawnEntity(state: *State, id: i32, pos_x: f32, pos_y: f32, mass: u32) void {
     if (state.entity_count < max_entity_count) {
         state.entities[state.entity_count] = .{
             .id = id,

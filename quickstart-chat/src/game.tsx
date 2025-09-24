@@ -7,7 +7,8 @@ export default function ZigGame() {
   const [connected, setConnected] = useState<boolean>(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [conn, setConn] = useState<DbConnection | null>(null);
-  
+  const connRef = useRef<DbConnection | null>(null); // Use ref for conn
+
   //The game
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
@@ -55,63 +56,26 @@ export default function ZigGame() {
 
       conn.db.entity.onUpdate((ctx: EventContext, oldEntity: Entity, newEntity: Entity) => {
 
-        //TODO: FIX updateEntity to work on all entities!
-        
-        console.warn("⚠️ REQUEST UPDATED ENTITY: " + newEntity.entityId);
         if (updateEntity && statePtr !== 0) {
           updateEntity(statePtr, newEntity.entityId, newEntity.position.x,  newEntity.position.y,  newEntity.mass);
-          console.warn("✅ UPDATED ENTITY: " + newEntity.entityId);
-          console.warn("✅ new pos: " + newEntity.position.x);
        
         }
-
-
       });
 
       conn.db.entity.onInsert((ctx: EventContext, entity: Entity) => {
         if (spawnEntity && statePtr !== 0) {
-          console.log(`Entity ID: ${entity.entityId}`);
-
           spawnEntity(statePtr, entity.entityId, entity.position.x,  entity.position.y,  entity.mass);
           const entitySize = JSON.stringify(entity).length;
-          console.log(`Entity size: ${entitySize} bytes`);
-          console.log(`⚠️⚠️⚠️⚠️⚠️⚠️✅ Spawned circle at (${entity!.position.x}, ${entity!.position.y})`);
         } else {
           console.warn("⚠️ WASM not ready for spawning Players yet");
         }
       });
 
-      // conn.db.circle.onInsert((ctx: EventContext, circle: Circle) => {
-      //     const circle_entity = conn.db.entity.entityId.find(circle.entityId);
-      //   if (spawnEntity && statePtr !== 0) {
-      //     spawnEntity(statePtr, circle_entity!.entityId, circle_entity!.position.x,  circle_entity!.position.y,  circle_entity!.mass);
-      //     const entitySize = JSON.stringify(circle_entity).length;
-      //     console.log(`Entity size: ${entitySize} bytes`);
-      //     console.log(`✅ Spawned circle at (${circle_entity!.position.x}, ${circle_entity!.position.y})`);
-      //   } else {
-      //     console.warn("⚠️ WASM not ready for spawning Players yet");
-      //   }
-      // });
-
-      // conn.db.food.onInsert((ctx: EventContext, food: Food) => {
-      //   const entity = conn.db.entity.entityId.find(food.entityId);
-        
-      //   // Now we have access to spawnFood and statePtr!
-      //   if (spawnEntity && statePtr !== 0) {
-      //     spawnEntity(statePtr, entity!.entityId, entity!.position.x,  entity!.position.y,  entity!.mass);
-      //     console.log(`✅ Spawned food at (${entity!.position.x}, ${entity!.position.y})`);
-      //   } else {
-      //     console.warn("⚠️ WASM not ready for spawning food yet");
-      //   }
-      // });
-
-      // const dir: DbVector2 = { x: 1, y: 0 };
-      // conn.reducers.updatePlayerInput(dir);
-
     };
 
+
     const onDisconnect = () => {
-      console.log('Disconnected from SpacetimeDB');
+      console.log('❌ Disconnected from SpacetimeDB');
       setConnected(false);
     };
 
@@ -128,6 +92,8 @@ export default function ZigGame() {
       .onConnectError(onConnectError)
       .build();
 
+
+    connRef.current = connection;
     setConn(connection);
 
     // Cleanup
@@ -204,16 +170,16 @@ export default function ZigGame() {
         window.addEventListener("keyup", handleKeyUp);
 
         function syncInput() {
-          if (conn)
-          {
-            var direction: DbVector2 = {x: 1, y:0};
-            conn!.reducers.updatePlayerInput(direction);
-
-          }
-          // inputView.setUint8(0, input.a ? 1 : 0);
-          // inputView.setUint8(1, input.w ? 1 : 0);
-          // inputView.setUint8(2, input.s ? 1 : 0);
-          // inputView.setUint8(3, input.d ? 1 : 0);
+          if ((input.w
+            || input.a
+            || input.s
+            || input.d)
+            && (connRef.current && connRef.current.isActive)) {
+            const direction: DbVector2 = {
+              x: ((input.d ? 1 : 0) - (input.a ? 1 : 0)),
+              y: ((input.s ? 1 : 0) - (input.w ? 1 : 0))};
+            connRef.current.reducers.updatePlayerInput(direction);
+          } 
         }
 
         let lastTime = performance.now();
@@ -228,7 +194,6 @@ export default function ZigGame() {
           }
           
           syncInput();
-
 
           update(dt, STATE_PTR, INPUT_PTR);
           draw(STATE_PTR, PIXELS_PTR);
@@ -245,12 +210,7 @@ export default function ZigGame() {
         console.error("❌ Failed to initialize WASM:", error);
       }
     }
-
-    
-
     init();
-
-    
 
     return () => {
       if (animationId) {
