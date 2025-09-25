@@ -13,11 +13,23 @@ pub const State = struct {
     entity_count: usize = 0,
 };
 
+const entityType = enum(c_int) {
+    player,
+    food,
+};
+
 pub const Entity = extern struct {
-    id: i32 = 0,
+    id: u32 = 0,
     pos_x: f32 = 0,
     pos_y: f32 = 0,
     mass: u32 = 0,
+    e_type: entityType = .player,
+};
+
+const entityAction = enum(c_int) {
+    spawnPlayer = 0,
+    spawnFood = 1,
+    update = 2,
 };
 
 pub const Input = extern struct {
@@ -50,52 +62,48 @@ pub const Pixel = extern struct {
     }
 };
 
-pub export fn updateEntity(state: *State, id: i32, pos_x: f32, pos_y: f32, mass: u32) void {
-    _ = mass;
+pub export fn entityFunction(state: *State, enitity: Entity, action: entityAction) void {
+    switch (action) {
+        .spawnPlayer => spawnPlayer(state, enitity),
+        .spawnFood => spawnFood(state, enitity),
+        .update => updateEntity(state, enitity),
+    }
+}
+
+pub fn updateEntity(state: *State, enitity: Entity) void {
     for (0..@min(state.entity_count, max_entity_count)) |i| {
-        if (state.entities[i].id == id) {
-            state.entities[i].pos_x = pos_x;
-            state.entities[i].pos_y = pos_y;
+        if (state.entities[i].id == enitity.id) {
+            state.entities[i].pos_x = enitity.pos_x;
+            state.entities[i].pos_y = enitity.pos_y;
             return;
         }
     }
 }
 
-pub export fn spawnEntity(state: *State, id: i32, pos_x: f32, pos_y: f32, mass: u32) void {
+pub fn spawnPlayer(state: *State, enitity: Entity) void {
     if (state.entity_count < max_entity_count) {
         state.entities[state.entity_count] = .{
-            .id = id,
-            .pos_x = pos_x,
-            .pos_y = pos_y,
-            .mass = mass,
+            .id = enitity.id,
+            .pos_x = enitity.pos_x,
+            .pos_y = enitity.pos_y,
+            .mass = enitity.mass,
+            .e_type = .player,
         };
         state.entity_count += 1;
     }
 }
 
-//TODO: COPY the state dont use the same!
-pub export fn update(dt: f32, state: *State, input: *Input) void {
-    _ = state;
-    _ = dt;
-    _ = input;
-
-    // for (0..@min(state.player_count, state.players.len)) |i| {
-    //     state.players[i].pos_x += 0.1;
-    // }
-
-    // state.dir_y = 0;
-    // state.dir_x = 0;
-    // state.dir_y += if (input.w) -1 else 0;
-    // state.dir_y += if (input.s) 1 else 0;
-    // state.dir_x += if (input.a) -1 else 0;
-    // state.dir_x += if (input.d) 1 else 0;
-
-    // state.elapsed_time += dt;
-    // state.pos_x += state.dir_x * dt * 100;
-    // state.pos_y += state.dir_y * dt * 100;
-
-    // state.pos_x = @cos(state.elapsed_time * 100) * 30 + 100;
-    // state.pos_y = @sin(state.elapsed_time * 100) * 30 + 100;
+pub fn spawnFood(state: *State, enitity: Entity) void {
+    if (state.entity_count < max_entity_count) {
+        state.entities[state.entity_count] = .{
+            .id = enitity.id,
+            .pos_x = enitity.pos_x,
+            .pos_y = enitity.pos_y,
+            .mass = enitity.mass,
+            .e_type = .food,
+        };
+        state.entity_count += 1;
+    }
 }
 
 pub export fn draw(state: *State, buffer: [*]Pixel) void {
@@ -105,7 +113,10 @@ pub export fn draw(state: *State, buffer: [*]Pixel) void {
     // const box_y: i32 = @intFromFloat(state.pos_y);
     // drawCube(buffer, box_x, box_y, Pixel.initOpaque(0xFF, 0x00, 0x0F));
     for (0..@min(state.entity_count, max_entity_count)) |i| {
-        drawCube(buffer, @intFromFloat(state.entities[i].pos_x), @intFromFloat(state.entities[i].pos_y), .initOpaque(0xFF, 0x00, 0x00));
+        var color: Pixel = .initOpaque(0xFF, 0x00, 0x00);
+        if (state.entities[i].e_type == .food)
+            color = .initOpaque(0x00, 0x00, 0xFF);
+        drawCube(buffer, @intFromFloat(state.entities[i].pos_x), @intFromFloat(state.entities[i].pos_y), color);
     }
 }
 

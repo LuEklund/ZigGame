@@ -7,15 +7,30 @@ export default function ZigGame() {
   const [connected, setConnected] = useState<boolean>(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [conn, setConn] = useState<DbConnection | null>(null);
-  const connRef = useRef<DbConnection | null>(null); // Use ref for conn
+  const connRef = useRef<DbConnection | null>(null);
 
   //The game
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [wasmMemory, setwasmMemory] = useState<WebAssembly.Memory | null>(null);
+
+  const STATE_SIZE = 2576;
+  const INPUT_SIZE = 4;
+  const ENTITY_SIZE = 16;
+
+  const STATE_PTR = 1;
+  const INPUT_PTR = STATE_PTR + STATE_SIZE;
+  const ENTITY_PTR = INPUT_PTR + INPUT_SIZE;
+  const PIXELS_PTR = ENTITY_PTR + ENTITY_SIZE;
+
+  enum EntityAction {
+    SpawnPlayer = 0,
+    SpawnFood = 1,
+    Update = 2,
+  }
   
   // WASM state - these will be available to database callbacks
   const [wasmReady, setWasmReady] = useState(false);
-  const [spawnEntity, setSpawnEntity] = useState<((statePtr: number,id: number, posx: number, posy: number, mass: number) => void) | null>(null);
-  const [updateEntity, setUpdateEntity] = useState<((statePtr: number,id: number, posx: number, posy: number, mass: number) => void) | null>(null);
+  const [entityFunction, setEntityFunction] = useState<((statePtr: number, entity: number, action: EntityAction) => void) | null>(null);
   const [statePtr, setStatePtr] = useState(0);
 
 
@@ -29,6 +44,20 @@ export default function ZigGame() {
 
     //   spawnPlayer(statePtr, 50, 50);
     // }
+  }
+
+  function  setEntityPtr (entity: Entity): boolean
+  {
+    if (wasmMemory)
+    {
+      const entityView = new DataView(wasmMemory.buffer, ENTITY_PTR, ENTITY_SIZE);
+      entityView.setInt32(0, entity.entityId, true);  
+      entityView.setFloat32(4, entity.position.x, true);
+      entityView.setFloat32(8, entity.position.y, true);
+      entityView.setFloat32(12, entity.mass, true);
+      return true;
+    }
+    return false;
   }
 
   // Database connection setup (runs once on mount)
@@ -56,16 +85,26 @@ export default function ZigGame() {
 
       conn.db.entity.onUpdate((ctx: EventContext, oldEntity: Entity, newEntity: Entity) => {
 
-        if (updateEntity && statePtr !== 0) {
-          updateEntity(statePtr, newEntity.entityId, newEntity.position.x,  newEntity.position.y,  newEntity.mass);
-       
+        if (entityFunction && statePtr !== 0) {
+          if (setEntityPtr(newEntity))
+            entityFunction(statePtr, ENTITY_PTR, EntityAction.Update);
         }
       });
 
       conn.db.entity.onInsert((ctx: EventContext, entity: Entity) => {
-        if (spawnEntity && statePtr !== 0) {
-          spawnEntity(statePtr, entity.entityId, entity.position.x,  entity.position.y,  entity.mass);
-          const entitySize = JSON.stringify(entity).length;
+        if (entityFunction && statePtr !== 0) {
+          if (setEntityPtr(entity))
+            entityFunction(statePtr, ENTITY_PTR, EntityAction.SpawnPlayer);
+        } else {
+          console.warn("⚠️ WASM not ready for spawning Players yet");
+        }
+      });
+
+      conn.db.food.onInsert((ctx: EventContext, food: Food) => {
+        if (entityFunction && statePtr !== 0) {
+          const entity = conn.db.entity.entityId.find(food.entityId);
+          if (entity && setEntityPtr(entity))
+            entityFunction(statePtr, ENTITY_PTR, EntityAction.SpawnFood);
         } else {
           console.warn("⚠️ WASM not ready for spawning Players yet");
         }
@@ -100,7 +139,7 @@ export default function ZigGame() {
     return () => {
       connection.disconnect();
     };
-  }, [wasmReady, spawnEntity, updateEntity, statePtr]); // Re-run when WASM becomes ready
+  }, [wasmReady, entityFunction, statePtr]); // Re-run when WASM becomes ready
 
   // WASM and game initialization
   useEffect(() => {
@@ -114,12 +153,7 @@ export default function ZigGame() {
       const width = canvas.width;
       const height = canvas.height;
 
-      const STATE_SIZE = 2064;
-      const INPUT_SIZE = 4;
 
-      const STATE_PTR = 1;
-      const INPUT_PTR = STATE_PTR + STATE_SIZE;
-      const PIXELS_PTR = INPUT_PTR + INPUT_SIZE + 32;
 
       try {
         const wasmResponse = await fetch("./ZigGameRuntime.wasm");
@@ -127,17 +161,15 @@ export default function ZigGame() {
         const { instance } = await WebAssembly.instantiate(wasmFile, {});
         console.log("🎮 WASM Exports:", Object.keys(instance.exports));
 
-        const { memory, update, spawnEntity, updateEntity, draw } = instance.exports as {
+        const { memory, entityFunction, draw } = instance.exports as {
           memory: WebAssembly.Memory;
-          update: (dt: number, statePtr: number, inputPtr: number) => void;
-          spawnEntity: (statePtr: number,id: number, posx: number, posy: number, mass: number) => void;
-          updateEntity: (statePtr: number,id: number, posx: number, posy: number, mass: number) => void;
+          entityFunction: (statePtr: number, entity: number, action: EntityAction) => void;
           draw: (statePtr: number, bufferPtr: number) => void;
         };
 
         // Store WASM functions and state in React state
-        setSpawnEntity(() => spawnEntity);
-        setUpdateEntity(() => updateEntity);
+        setEntityFunction(() => entityFunction);
+        setwasmMemory(memory);
         setStatePtr(STATE_PTR);
         setWasmReady(true);
         
@@ -170,11 +202,7 @@ export default function ZigGame() {
         window.addEventListener("keyup", handleKeyUp);
 
         function syncInput() {
-          if ((input.w
-            || input.a
-            || input.s
-            || input.d)
-            && (connRef.current && connRef.current.isActive)) {
+          if ((connRef.current && connRef.current.isActive)) {
             const direction: DbVector2 = {
               x: ((input.d ? 1 : 0) - (input.a ? 1 : 0)),
               y: ((input.s ? 1 : 0) - (input.w ? 1 : 0))};
@@ -195,7 +223,6 @@ export default function ZigGame() {
           
           syncInput();
 
-          update(dt, STATE_PTR, INPUT_PTR);
           draw(STATE_PTR, PIXELS_PTR);
             
           ctx.putImageData(new ImageData(pixelBuffer, width, height), 0, 0);
