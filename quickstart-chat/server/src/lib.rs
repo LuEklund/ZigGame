@@ -97,10 +97,10 @@ pub fn init(ctx: &ReducerContext) -> Result<(), String> {
         id: 0,
         world_size: 400,
     })?;
-    // ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
-    //     scheduled_id: 0,
-    //     scheduled_at: ScheduleAt::Interval(Duration::from_millis(10000).into()),
-    // })?;
+    ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
+        scheduled_id: 0,
+        scheduled_at: ScheduleAt::Interval(Duration::from_millis(10000).into()),
+    })?;
     ctx.db
     .move_all_players_timer()
     .try_insert(MoveAllPlayersTimer {
