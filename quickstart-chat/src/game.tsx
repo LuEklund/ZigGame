@@ -15,7 +15,7 @@ export default function ZigGame() {
 
   const STATE_SIZE = 2576;
   const INPUT_SIZE = 4;
-  const ENTITY_SIZE = 16;
+  const ENTITY_SIZE = 20;
 
   const STATE_PTR = 1;
   const INPUT_PTR = STATE_PTR + STATE_SIZE;
@@ -26,6 +26,7 @@ export default function ZigGame() {
     SpawnPlayer = 0,
     SpawnFood = 1,
     Update = 2,
+    Remove = 3,
   }
   
   // WASM state - these will be available to database callbacks
@@ -55,6 +56,7 @@ export default function ZigGame() {
       entityView.setFloat32(4, entity.position.x, true);
       entityView.setFloat32(8, entity.position.y, true);
       entityView.setFloat32(12, entity.mass, true);
+      entityView.setFloat32(16, 0, true);
       return true;
     }
     return false;
@@ -91,10 +93,20 @@ export default function ZigGame() {
         }
       });
 
-      conn.db.entity.onInsert((ctx: EventContext, entity: Entity) => {
+      conn.db.circle.onInsert((ctx: EventContext, circle: Circle) => {
+        if (entityFunction && statePtr !== 0) {
+          const entity = conn.db.entity.entityId.find(circle.entityId);
+          if (entity && setEntityPtr(entity))
+            entityFunction(statePtr, ENTITY_PTR, EntityAction.SpawnPlayer);
+        } else {
+          console.warn("⚠️ WASM not ready for spawning Players yet");
+        }
+      });
+
+      conn.db.entity.onDelete((ctx: EventContext, entity: Entity) => {
         if (entityFunction && statePtr !== 0) {
           if (setEntityPtr(entity))
-            entityFunction(statePtr, ENTITY_PTR, EntityAction.SpawnPlayer);
+            entityFunction(statePtr, ENTITY_PTR, EntityAction.Remove);
         } else {
           console.warn("⚠️ WASM not ready for spawning Players yet");
         }

@@ -99,7 +99,7 @@ pub fn init(ctx: &ReducerContext) -> Result<(), String> {
     })?;
     ctx.db.spawn_food_timer().try_insert(SpawnFoodTimer {
         scheduled_id: 0,
-        scheduled_at: ScheduleAt::Interval(Duration::from_millis(10000).into()),
+        scheduled_at: ScheduleAt::Interval(Duration::from_millis(1000).into()),
     })?;
     ctx.db
     .move_all_players_timer()
@@ -146,14 +146,7 @@ pub fn move_all_players(ctx: &ReducerContext, _timer: MoveAllPlayersTimer) -> Re
         let mut circle_entity = circle_entity.unwrap();
         let circle_radius = mass_to_radius(circle_entity.mass);
 
-        log::info!("circle.speed  {}", circle.speed);
-        log::info!("circle.direction pos x {}", circle.direction.x);
-        log::info!("circle.direction pos y {}", circle.direction.y);
-
-        
         let direction = circle.direction * circle.speed;
-        log::info!("direction pos x {}", direction.x);
-        log::info!("direction pos y {}", direction.y);
 
         let new_pos =
             circle_entity.position + direction * mass_to_max_move_speed(circle_entity.mass);
@@ -161,12 +154,6 @@ pub fn move_all_players(ctx: &ReducerContext, _timer: MoveAllPlayersTimer) -> Re
         let max = world_size as f32 - circle_radius;
         circle_entity.position.x = new_pos.x.clamp(min, max);
         circle_entity.position.y = new_pos.y.clamp(min, max);
-        log::info!("Updated circle {}", circle.entity_id);
-        log::info!("Updated Entity {}", circle_entity.entity_id);
-        log::info!("Updated new pos x {}", new_pos.x);
-        log::info!("Updated new pos y {}", new_pos.y);
-        log::info!("Updated circle_entity pos x {}", circle_entity.position.x);
-        log::info!("Updated circle_entity pos y {}", circle_entity.position.y);
         ctx.db.entity().entity_id().update(circle_entity);
 
     }
@@ -193,7 +180,7 @@ pub fn spawn_food(ctx: &ReducerContext, _timer: SpawnFoodTimer) -> Result<(), St
 
     let mut rng = ctx.rng();
     let mut food_count = ctx.db.food().count();
-    // while food_count < TARGET_FOOD_COUNT as u64 {
+    while food_count < TARGET_FOOD_COUNT as u64 {
         let food_mass = rng.gen_range(FOOD_MASS_MIN..FOOD_MASS_MAX);
         let food_radius = mass_to_radius(food_mass);
         let x = rng.gen_range(food_radius..world_size as f32 - food_radius);
@@ -208,7 +195,24 @@ pub fn spawn_food(ctx: &ReducerContext, _timer: SpawnFoodTimer) -> Result<(), St
         })?;
         food_count += 1;
         log::info!("Spawned food! {}", entity.entity_id);
+    }
+
+    // for food in ctx.db.food().iter() {
+    //     let food_entity = ctx.db.entity().entity_id().find(&food.entity_id);
+    //     if !food_entity.is_some() {
+    //         continue;
+    //     }
+    //     let mut food_entity = food_entity.unwrap();
+    //     let direction = DbVector2 { x: 0.0, y: 10.0 };
+    //     let new_pos =
+    //         food_entity.position + direction;
+    //     let min = 10.0;
+    //     let max = world_size as f32 - 10.0;
+    //     food_entity.position.x = new_pos.x.clamp(min, max);
+    //     food_entity.position.y = new_pos.y.clamp(min, max);
+    //     ctx.db.entity().entity_id().update(food_entity);
     // }
+
 
     Ok(())
 }
